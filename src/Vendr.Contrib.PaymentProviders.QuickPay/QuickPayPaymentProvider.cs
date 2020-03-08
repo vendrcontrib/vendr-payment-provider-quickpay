@@ -19,6 +19,14 @@ namespace Vendr.Contrib.PaymentProviders
 
         public override PaymentFormResult GenerateForm(OrderReadOnly order, string continueUrl, string cancelUrl, string callbackUrl, QuickPaySettings settings)
         {
+            var currency = Vendr.Services.CurrencyService.GetCurrency(order.CurrencyId);
+
+            // Ensure currency has valid ISO 4217 code
+            if (!Iso4217.CurrencyCodes.ContainsKey(currency.Code.ToUpperInvariant()))
+            {
+                throw new Exception("Currency must a valid ISO 4217 currency code: " + currency.Name);
+            }
+
             return new PaymentFormResult()
             {
                 Form = new PaymentForm(continueUrl, FormMethod.Post)
