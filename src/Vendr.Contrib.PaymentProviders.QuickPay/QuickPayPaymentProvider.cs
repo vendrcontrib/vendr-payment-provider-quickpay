@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Text;
 using System.Web;
 using System.Web.Mvc;
+using Flurl;
+using Flurl.Http;
 using Vendr.Core;
 using Vendr.Core.Models;
 using Vendr.Core.Web.Api;
@@ -25,6 +28,29 @@ namespace Vendr.Contrib.PaymentProviders
             if (!Iso4217.CurrencyCodes.ContainsKey(currency.Code.ToUpperInvariant()))
             {
                 throw new Exception("Currency must a valid ISO 4217 currency code: " + currency.Name);
+            }
+
+            try
+            {
+                // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
+
+                var basicAuth = Convert.ToBase64String(Encoding.Default.GetBytes(":" + settings.ApiKey));
+
+                var response = $"https://api.quickpay.net/payments"
+                    .WithHeader("Accept-Version", "v10")
+                    .WithHeader("Authorization", "Basic " + basicAuth)
+                    .WithHeader("Content-Type", "application/json")
+                    .PostUrlEncodedAsync(new
+                    {
+                        order_id = order.OrderNumber,
+                        currency = currency.Code
+                    })
+                    .ReceiveString();
+
+            }
+            catch (Exception ex)
+            {
+                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - error creating payment.");
             }
 
             return new PaymentFormResult()

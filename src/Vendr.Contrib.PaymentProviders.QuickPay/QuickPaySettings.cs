@@ -19,14 +19,19 @@ namespace Vendr.Contrib.PaymentProviders
             SortOrder = 300)]
         public string ErrorUrl { get; set; }
 
+        [PaymentProviderSetting(Name = "API Key",
+            Description = "API Key from the QuickPay administration portal.",
+            SortOrder = 400)]
+        public string ApiKey { get; set; }
+
         [PaymentProviderSetting(Name = "Merchant ID",
             Description = "Merchant ID supplied by QuickPay during registration.",
-            SortOrder = 400)]
+            SortOrder = 500)]
         public string MerchantId { get; set; }
 
         [PaymentProviderSetting(Name = "Agreement ID",
             Description = "Agreement ID supplied by QuickPay during registration.",
-            SortOrder = 500)]
+            SortOrder = 600)]
         public string AgreemendId { get; set; }
 
         [PaymentProviderSetting(Name = "Accepted Payment Methods",
