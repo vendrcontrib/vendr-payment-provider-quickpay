@@ -30,6 +30,8 @@ namespace Vendr.Contrib.PaymentProviders
                 throw new Exception("Currency must a valid ISO 4217 currency code: " + currency.Name);
             }
 
+            var orderAmount = (order.TotalPrice.Value.WithTax * 100M).ToString("0", CultureInfo.InvariantCulture);
+
             try
             {
                 // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
@@ -40,13 +42,29 @@ namespace Vendr.Contrib.PaymentProviders
                     .WithHeader("Accept-Version", "v10")
                     .WithHeader("Authorization", "Basic " + basicAuth)
                     .WithHeader("Content-Type", "application/json")
-                    .PostUrlEncodedAsync(new
+                    .PostJsonAsync(new
                     {
                         order_id = order.OrderNumber,
                         currency = currency.Code
                     })
-                    .ReceiveString();
+                    .ReceiveJson();
 
+                var payment = response.Result;
+
+                var paymentLink = $"https://api.quickpay.net/payments/{payment.id}/link"
+                    .WithHeader("Accept-Version", "v10")
+                    .WithHeader("Authorization", "Basic " + basicAuth)
+                    .WithHeader("Content-Type", "application/json")
+                    .PutJsonAsync(new
+                    {
+                        amount = orderAmount
+                    })
+                    .ReceiveJson();
+
+                var test = paymentLink.Result;
+
+
+                continueUrl = test.link;
             }
             catch (Exception ex)
             {
