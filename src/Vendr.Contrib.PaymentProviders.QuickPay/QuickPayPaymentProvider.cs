@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Web;
 using System.Web.Mvc;
@@ -41,6 +42,11 @@ namespace Vendr.Contrib.PaymentProviders
 
             string paymentFormLink = string.Empty;
             var orderAmount = (order.TotalPrice.Value.WithTax * 100M).ToString("0", CultureInfo.InvariantCulture);
+
+            var paymentMethods = settings.PaymentMethods?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                   .Where(x => !string.IsNullOrWhiteSpace(x))
+                   .Select(s => s.Trim())
+                   .ToArray();
 
             // Parse language - default language is English.
             Enum.TryParse(settings.Lang, true, out QuickPayLang lang);
@@ -83,7 +89,7 @@ namespace Vendr.Contrib.PaymentProviders
                             continue_url = continueUrl,
                             cancel_url = cancelUrl,
                             callback_url = callbackUrl,
-                            payment_methods = "",
+                            payment_methods = (paymentMethods != null && paymentMethods.Length > 0 ? string.Join(",", paymentMethods) : null),
                             auto_fee = settings.AutoFee,
                             auto_capture = settings.AutoCapture
                         })
@@ -114,7 +120,8 @@ namespace Vendr.Contrib.PaymentProviders
             }
             else
             {
-                paymentFormLink = 
+                // Get payment link from order properties.
+                paymentFormLink = string.Empty;
             }
 
             return new PaymentFormResult()

@@ -34,6 +34,11 @@ namespace Vendr.Contrib.PaymentProviders
             SortOrder = 600)]
         public string AgreemendId { get; set; }
 
+        [PaymentProviderSetting(Name = "Language",
+            Description = "The language of the payment portal to display.",
+            SortOrder = 900)]
+        public string Lang { get; set; }
+
         [PaymentProviderSetting(Name = "Accepted Payment Methods",
             Description = "A comma separated list of Payment Methods to accept. To use negation just put a “!” in front the those you do not wish to accept.",
             SortOrder = 1000)]
