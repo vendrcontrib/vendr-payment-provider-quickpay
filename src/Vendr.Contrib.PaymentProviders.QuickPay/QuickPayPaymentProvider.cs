@@ -41,13 +41,16 @@ namespace Vendr.Contrib.PaymentProviders
             string paymentFormLink = string.Empty;
             var orderAmount = (order.TotalPrice.Value.WithTax * 100M).ToString("0", CultureInfo.InvariantCulture);
 
+            QuickPayPaymentDto payment = null;
+            string quickPayPaymentHash = string.Empty;
+
             try
             {
                 // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
 
                 var basicAuth = Convert.ToBase64String(Encoding.Default.GetBytes(":" + settings.ApiKey));
 
-                var payment = $"https://api.quickpay.net/payments"
+                payment = $"https://api.quickpay.net/payments"
                     .WithHeader("Accept-Version", "v10")
                     .WithHeader("Authorization", "Basic " + basicAuth)
                     .WithHeader("Content-Type", "application/json")
@@ -70,6 +73,22 @@ namespace Vendr.Contrib.PaymentProviders
                         amount = orderAmount
                     })
                     .ReceiveJson<QuickPayPaymentLinkDto>().Result;
+
+                quickPayPaymentHash = Base64Encode(payment.Id + order.OrderNumber);
+
+                //var test = new ApiResult()
+                //{
+                //    TransactionInfo = new TransactionInfoUpdate()
+                //    {
+                //        TransactionId = GetTransactionId(payment),
+                //        PaymentStatus = GetPaymentStatus(payment)
+                //    },
+                //    MetaData = new Dictionary<string, string>
+                //    {
+                //        { "quickPayPaymentId", payment.Id.ToString() },
+                //        { "quickPayPaymentHash", hash }
+                //    }
+                //};
 
                 //using (var uow = Vendr.Uow.Create())
                 //{
@@ -98,6 +117,11 @@ namespace Vendr.Contrib.PaymentProviders
 
             return new PaymentFormResult()
             {
+                MetaData = new Dictionary<string, string>
+                {
+                    { "quickPayPaymentId", payment?.Id.ToString() },
+                    { "quickPayPaymentHash", quickPayPaymentHash }
+                },
                 Form = new PaymentForm(paymentFormLink, FormMethod.Get)
             };
         }
@@ -132,6 +156,28 @@ namespace Vendr.Contrib.PaymentProviders
                     PaymentStatus = PaymentStatus.Authorized
                 }
             };
+        }
+
+        protected PaymentStatus GetPaymentStatus(QuickPayPaymentDto payment)
+        {
+            // Possible Payment statuses:
+            // - initial
+            // - pending
+            // - new
+            // - rejected
+            // - processed
+
+            if (payment.State == "rejected")
+                return PaymentStatus.Error;
+
+            if (payment.State == "pending")
+                return PaymentStatus.PendingExternalSystem;
+
+            return PaymentStatus.Initialized;
+        }
+        protected string GetTransactionId(QuickPayPaymentDto payment)
+        {
+            return payment?.Id.ToString();
         }
 
         private static string Base64Encode(string plainText)

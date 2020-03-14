@@ -23,6 +23,9 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         [DataMember(Name = "currency")]
         public string Currency { get; set; }
 
+        [DataMember(Name = "state")]
+        public string State { get; set; }
+
         [DataMember(Name = "link")]
         public object Link { get; set; }
         
