@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Web;
 using System.Web.Mvc;
 using Flurl;
 using Flurl.Http;
+using Vendr.Contrib.PaymentProviders.QuickPay;
 using Vendr.Core;
 using Vendr.Core.Models;
 using Vendr.Core.Web.Api;
@@ -20,6 +23,11 @@ namespace Vendr.Contrib.PaymentProviders
 
         public override bool FinalizeAtContinueUrl => true;
 
+        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]{
+            new TransactionMetaDataDefinition("quickPayPaymentId", "QuickPay Payment ID"),
+            new TransactionMetaDataDefinition("quickPayPaymentHash", "QuickPay Payment Hash")
+        };
+
         public override PaymentFormResult GenerateForm(OrderReadOnly order, string continueUrl, string cancelUrl, string callbackUrl, QuickPaySettings settings)
         {
             var currency = Vendr.Services.CurrencyService.GetCurrency(order.CurrencyId);
@@ -30,6 +38,7 @@ namespace Vendr.Contrib.PaymentProviders
                 throw new Exception("Currency must a valid ISO 4217 currency code: " + currency.Name);
             }
 
+            string paymentFormLink = string.Empty;
             var orderAmount = (order.TotalPrice.Value.WithTax * 100M).ToString("0", CultureInfo.InvariantCulture);
 
             try
@@ -38,7 +47,7 @@ namespace Vendr.Contrib.PaymentProviders
 
                 var basicAuth = Convert.ToBase64String(Encoding.Default.GetBytes(":" + settings.ApiKey));
 
-                var response = $"https://api.quickpay.net/payments"
+                var payment = $"https://api.quickpay.net/payments"
                     .WithHeader("Accept-Version", "v10")
                     .WithHeader("Authorization", "Basic " + basicAuth)
                     .WithHeader("Content-Type", "application/json")
@@ -47,11 +56,12 @@ namespace Vendr.Contrib.PaymentProviders
                         order_id = order.OrderNumber,
                         currency = currency.Code
                     })
-                    .ReceiveJson();
+                    .ReceiveJson<QuickPayPaymentDto>().Result;
 
-                var payment = response.Result;
+                // Set "quickPaymentId" order property (payment id)
+                // Set "quickPayHash" order property (base64 hash of payment id + order number)
 
-                var paymentLink = $"https://api.quickpay.net/payments/{payment.id}/link"
+                var paymentLink = $"https://api.quickpay.net/payments/{payment.Id}/link"
                     .WithHeader("Accept-Version", "v10")
                     .WithHeader("Authorization", "Basic " + basicAuth)
                     .WithHeader("Content-Type", "application/json")
@@ -59,12 +69,27 @@ namespace Vendr.Contrib.PaymentProviders
                     {
                         amount = orderAmount
                     })
-                    .ReceiveJson();
+                    .ReceiveJson<QuickPayPaymentLinkDto>().Result;
 
-                var test = paymentLink.Result;
+                //using (var uow = Vendr.Uow.Create())
+                //{
+                //    var hash = Base64Encode(payment.Id + order.OrderNumber);
 
+                //    var properties = new Dictionary<string, string>()
+                //    {
+                //        { "quickPayPaymentId", payment.Id },
+                //        { "quickPayPaymentHash", hash }
+                //    };
 
-                continueUrl = test.link;
+                //    var basket = order.AsWritable(uow)
+                //                      .SetProperties(properties);
+
+                //    Vendr.Services.OrderService.SaveOrder(basket);
+
+                //    uow.Complete();
+                //}
+
+                paymentFormLink = paymentLink.Url;
             }
             catch (Exception ex)
             {
@@ -73,7 +98,7 @@ namespace Vendr.Contrib.PaymentProviders
 
             return new PaymentFormResult()
             {
-                Form = new PaymentForm(continueUrl, FormMethod.Post)
+                Form = new PaymentForm(paymentFormLink, FormMethod.Get)
             };
         }
 
@@ -107,6 +132,18 @@ namespace Vendr.Contrib.PaymentProviders
                     PaymentStatus = PaymentStatus.Authorized
                 }
             };
+        }
+
+        private static string Base64Encode(string plainText)
+        {
+            var plainTextBytes = Encoding.UTF8.GetBytes(plainText);
+            return Convert.ToBase64String(plainTextBytes);
+        }
+
+        public static string Base64Decode(string base64EncodedData)
+        {
+            var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
+            return Encoding.UTF8.GetString(base64EncodedBytes);
         }
     }
 }
