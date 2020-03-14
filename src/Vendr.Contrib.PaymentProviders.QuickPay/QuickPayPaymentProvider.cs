@@ -90,24 +90,6 @@ namespace Vendr.Contrib.PaymentProviders
                 //    }
                 //};
 
-                //using (var uow = Vendr.Uow.Create())
-                //{
-                //    var hash = Base64Encode(payment.Id + order.OrderNumber);
-
-                //    var properties = new Dictionary<string, string>()
-                //    {
-                //        { "quickPayPaymentId", payment.Id },
-                //        { "quickPayPaymentHash", hash }
-                //    };
-
-                //    var basket = order.AsWritable(uow)
-                //                      .SetProperties(properties);
-
-                //    Vendr.Services.OrderService.SaveOrder(basket);
-
-                //    uow.Complete();
-                //}
-
                 paymentFormLink = paymentLink.Url;
             }
             catch (Exception ex)
@@ -167,6 +149,12 @@ namespace Vendr.Contrib.PaymentProviders
             // - rejected
             // - processed
 
+            if (payment.State == "new")
+                return PaymentStatus.Authorized;
+
+            if (payment.State == "processed")
+                return PaymentStatus.Captured;
+
             if (payment.State == "rejected")
                 return PaymentStatus.Error;
 
@@ -175,6 +163,7 @@ namespace Vendr.Contrib.PaymentProviders
 
             return PaymentStatus.Initialized;
         }
+
         protected string GetTransactionId(QuickPayPaymentDto payment)
         {
             return payment?.Id.ToString();

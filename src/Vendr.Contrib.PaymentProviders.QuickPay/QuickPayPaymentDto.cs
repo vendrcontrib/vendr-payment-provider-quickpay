@@ -28,6 +28,14 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
         [DataMember(Name = "link")]
         public object Link { get; set; }
-        
+
+        [DataMember(Name = "test_mode")]
+        public bool TestMode { get; set; }
+
+        [DataMember(Name = "balance")]
+        public int Balance { get; set; }
+
+        [DataMember(Name = "fee")]
+        public int Fee { get; set; }
     }
 }
