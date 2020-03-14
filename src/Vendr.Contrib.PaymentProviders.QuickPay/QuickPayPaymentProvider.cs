@@ -11,6 +11,7 @@ using Vendr.Core;
 using Vendr.Core.Models;
 using Vendr.Core.Web.Api;
 using Vendr.Core.Web.PaymentProviders;
+using Vendr.PaymentProviders.QuickPay;
 
 namespace Vendr.Contrib.PaymentProviders
 {
@@ -41,60 +42,79 @@ namespace Vendr.Contrib.PaymentProviders
             string paymentFormLink = string.Empty;
             var orderAmount = (order.TotalPrice.Value.WithTax * 100M).ToString("0", CultureInfo.InvariantCulture);
 
+            // Parse language - default language is English.
+            Enum.TryParse(settings.Lang, true, out QuickPayLang lang);
+
             QuickPayPaymentDto payment = null;
             string quickPayPaymentHash = string.Empty;
 
-            try
+            var quickPayPaymentId = order.Properties["quickPayPaymentId"];
+
+            if (string.IsNullOrEmpty(quickPayPaymentId))
             {
-                // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
+                try
+                {
+                    // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
 
-                var basicAuth = Convert.ToBase64String(Encoding.Default.GetBytes(":" + settings.ApiKey));
+                    var basicAuth = Convert.ToBase64String(Encoding.Default.GetBytes(":" + settings.ApiKey));
 
-                payment = $"https://api.quickpay.net/payments"
-                    .WithHeader("Accept-Version", "v10")
-                    .WithHeader("Authorization", "Basic " + basicAuth)
-                    .WithHeader("Content-Type", "application/json")
-                    .PostJsonAsync(new
-                    {
-                        order_id = order.OrderNumber,
-                        currency = currency.Code
-                    })
-                    .ReceiveJson<QuickPayPaymentDto>().Result;
+                    payment = $"https://api.quickpay.net/payments"
+                        .WithHeader("Accept-Version", "v10")
+                        .WithHeader("Authorization", "Basic " + basicAuth)
+                        .WithHeader("Content-Type", "application/json")
+                        .PostJsonAsync(new
+                        {
+                            order_id = order.OrderNumber,
+                            currency = currency.Code
+                        })
+                        .ReceiveJson<QuickPayPaymentDto>().Result;
 
-                // Set "quickPaymentId" order property (payment id)
-                // Set "quickPayHash" order property (base64 hash of payment id + order number)
+                    // Set "quickPaymentId" order property (payment id)
+                    // Set "quickPayHash" order property (base64 hash of payment id + order number)
 
-                var paymentLink = $"https://api.quickpay.net/payments/{payment.Id}/link"
-                    .WithHeader("Accept-Version", "v10")
-                    .WithHeader("Authorization", "Basic " + basicAuth)
-                    .WithHeader("Content-Type", "application/json")
-                    .PutJsonAsync(new
-                    {
-                        amount = orderAmount
-                    })
-                    .ReceiveJson<QuickPayPaymentLinkDto>().Result;
+                    var paymentLink = $"https://api.quickpay.net/payments/{payment.Id}/link"
+                        .WithHeader("Accept-Version", "v10")
+                        .WithHeader("Authorization", "Basic " + basicAuth)
+                        .WithHeader("Content-Type", "application/json")
+                        .PutJsonAsync(new
+                        {
+                            amount = orderAmount,
+                            language = lang.ToString(),
+                            continue_url = continueUrl,
+                            cancel_url = cancelUrl,
+                            callback_url = callbackUrl,
+                            payment_methods = "",
+                            auto_fee = settings.AutoFee,
+                            auto_capture = settings.AutoCapture
+                        })
+                        .ReceiveJson<QuickPayPaymentLinkDto>().Result;
 
-                quickPayPaymentHash = Base64Encode(payment.Id + order.OrderNumber);
+                    quickPayPaymentHash = Base64Encode(payment.Id + order.OrderNumber);
 
-                //var test = new ApiResult()
-                //{
-                //    TransactionInfo = new TransactionInfoUpdate()
-                //    {
-                //        TransactionId = GetTransactionId(payment),
-                //        PaymentStatus = GetPaymentStatus(payment)
-                //    },
-                //    MetaData = new Dictionary<string, string>
-                //    {
-                //        { "quickPayPaymentId", payment.Id.ToString() },
-                //        { "quickPayPaymentHash", hash }
-                //    }
-                //};
+                    //var test = new ApiResult()
+                    //{
+                    //    TransactionInfo = new TransactionInfoUpdate()
+                    //    {
+                    //        TransactionId = GetTransactionId(payment),
+                    //        PaymentStatus = GetPaymentStatus(payment)
+                    //    },
+                    //    MetaData = new Dictionary<string, string>
+                    //    {
+                    //        { "quickPayPaymentId", payment.Id.ToString() },
+                    //        { "quickPayPaymentHash", hash }
+                    //    }
+                    //};
 
-                paymentFormLink = paymentLink.Url;
+                    paymentFormLink = paymentLink.Url;
+                }
+                catch (Exception ex)
+                {
+                    Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - error creating payment.");
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - error creating payment.");
+                paymentFormLink = 
             }
 
             return new PaymentFormResult()
