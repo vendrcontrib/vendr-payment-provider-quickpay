@@ -62,7 +62,7 @@ namespace Vendr.Contrib.PaymentProviders
                 {
                     // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
 
-                    var basicAuth = Convert.ToBase64String(Encoding.Default.GetBytes(":" + settings.ApiKey));
+                    var basicAuth = Base64Encode(":" + settings.ApiKey);
 
                     payment = $"https://api.quickpay.net/payments"
                         .WithHeader("Accept-Version", "v10")
