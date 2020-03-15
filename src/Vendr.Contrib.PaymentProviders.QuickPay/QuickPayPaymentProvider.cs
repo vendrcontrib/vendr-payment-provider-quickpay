@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 using System.Web.Mvc;
@@ -56,8 +57,8 @@ namespace Vendr.Contrib.PaymentProviders
 
             var quickPayPaymentId = order.Properties["quickPayPaymentId"];
 
-            if (string.IsNullOrEmpty(quickPayPaymentId))
-            {
+            //if (string.IsNullOrEmpty(quickPayPaymentId))
+            //{
                 try
                 {
                     // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
@@ -117,12 +118,12 @@ namespace Vendr.Contrib.PaymentProviders
                 {
                     Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - error creating payment.");
                 }
-            }
-            else
-            {
-                // Get payment link from order properties.
-                paymentFormLink = string.Empty;
-            }
+            //}
+            //else
+            //{
+            //    // Get payment link from order properties.
+            //    paymentFormLink = string.Empty;
+            //}
 
             return new PaymentFormResult()
             {
@@ -161,16 +162,37 @@ namespace Vendr.Contrib.PaymentProviders
 
         public override CallbackResult ProcessCallback(OrderReadOnly order, HttpRequestBase request, QuickPaySettings settings)
         {
-            return new CallbackResult
+            try
             {
-                TransactionInfo = new TransactionInfo
+                if (ValidateChecksum(request, settings.PrivateKey))
                 {
-                    AmountAuthorized = order.TotalPrice.Value.WithTax,
-                    TransactionFee = 0m,
-                    TransactionId = Guid.NewGuid().ToString("N"),
-                    PaymentStatus = PaymentStatus.Authorized
+                    // Get operations to check if payment has been approved
+                    //var operations = callbackObject.Operations.LastOrDefault();
+                    // Check if payment has been approved
+                    //return operations != null && (operations.qp_status_code == "000" || operations.qp_status_code == "20000") && operations.qp_status_msg.ToLower() == "approved";
+
+                    return new CallbackResult
+                    {
+                        TransactionInfo = new TransactionInfo
+                        {
+                            AmountAuthorized = order.TotalPrice.Value.WithTax,
+                            TransactionFee = 0m,
+                            TransactionId = Guid.NewGuid().ToString("N"),
+                            PaymentStatus = PaymentStatus.Authorized
+                        }
+                    };
                 }
-            };
+                else
+                {
+                    Vendr.Log.Warn<QuickPayPaymentProvider>($"QuickPay [{order.OrderNumber}] - Checksum validation failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - ProcessCallback");
+            }
+
+            return CallbackResult.Empty;
         }
 
         protected PaymentStatus GetPaymentStatus(QuickPayPaymentDto payment)
@@ -200,6 +222,41 @@ namespace Vendr.Contrib.PaymentProviders
         protected string GetTransactionId(QuickPayPaymentDto payment)
         {
             return payment?.Id.ToString();
+        }
+
+        private bool ValidateChecksum(HttpRequestBase request, string privateAccountKey)
+        {
+            var requestCheckSum = request.Headers["QuickPay-Checksum-Sha256"];
+
+            if (requestCheckSum == "") return false;
+            var inputStream = request.InputStream;
+            var bytes = new byte[inputStream.Length];
+            request.InputStream.Position = 0;
+            request.InputStream.Read(bytes, 0, bytes.Length);
+            request.InputStream.Position = 0;
+            var content = Encoding.UTF8.GetString(bytes);
+            var calculatedChecksum = Checksum(content, privateAccountKey);
+
+            return requestCheckSum.Equals(calculatedChecksum);
+        }
+
+        private string Checksum(string content, string privateKey)
+        {
+            var s = new StringBuilder();
+            var e = Encoding.UTF8;
+            var bytes = e.GetBytes(privateKey);
+
+            using (var hmac = new HMACSHA256(bytes))
+            {
+                var b = hmac.ComputeHash(e.GetBytes(content));
+
+                foreach (var t in b)
+                {
+                    s.Append(t.ToString("x2"));
+                }
+            }
+
+            return s.ToString();
         }
     }
 }
