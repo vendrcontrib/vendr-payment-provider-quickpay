@@ -24,14 +24,19 @@ namespace Vendr.Contrib.PaymentProviders
             SortOrder = 400)]
         public string ApiKey { get; set; }
 
+        [PaymentProviderSetting(Name = "Private Key",
+            Description = "Private Key from the QuickPay administration portal.",
+            SortOrder = 500)]
+        public string PrivateKey { get; set; }
+
         [PaymentProviderSetting(Name = "Merchant ID",
             Description = "Merchant ID supplied by QuickPay during registration.",
-            SortOrder = 500)]
+            SortOrder = 600)]
         public string MerchantId { get; set; }
 
         [PaymentProviderSetting(Name = "Agreement ID",
             Description = "Agreement ID supplied by QuickPay during registration.",
-            SortOrder = 600)]
+            SortOrder = 700)]
         public string AgreemendId { get; set; }
 
         [PaymentProviderSetting(Name = "Language",
