@@ -26,11 +26,20 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         [DataMember(Name = "state")]
         public string State { get; set; }
 
+        [DataMember(Name = "metadata")]
+        public dynamic MetaData { get; set; }
+
         [DataMember(Name = "link")]
         public object Link { get; set; }
 
         [DataMember(Name = "test_mode")]
         public bool TestMode { get; set; }
+
+        [DataMember(Name = "acquirer")]
+        public string Acquirer { get; set; }
+
+        [DataMember(Name = "facilitator")]
+        public string Facilitator { get; set; }
 
         [DataMember(Name = "balance")]
         public int Balance { get; set; }
