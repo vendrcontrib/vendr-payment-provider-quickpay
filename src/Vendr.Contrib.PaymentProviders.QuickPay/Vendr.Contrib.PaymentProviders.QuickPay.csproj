@@ -88,7 +88,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Iso4217.cs" />
     <Compile Include="Properties\VersionInfo.cs" />
     <Compile Include="QuickPayLang.cs" />
     <Compile Include="QuickPayPaymentDto.cs" />
