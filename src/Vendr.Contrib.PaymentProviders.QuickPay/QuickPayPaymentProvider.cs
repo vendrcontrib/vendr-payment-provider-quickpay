@@ -217,6 +217,16 @@ namespace Vendr.Contrib.PaymentProviders
 
             try
             {
+                var id = order.TransactionInfo.TransactionId;
+
+                var basicAuth = Base64Encode(":" + settings.ApiKey);
+
+                var payment = $"https://api.quickpay.net/payments/{id}/cancel"
+                    .WithHeader("Accept-Version", "v10")
+                    .WithHeader("Authorization", "Basic " + basicAuth)
+                    .WithHeader("Content-Type", "application/json")
+                    .PostUrlEncodedAsync(null)
+                    .ReceiveJson<QuickPayPaymentDto>().Result;
 
             }
             catch (Exception ex)
@@ -233,7 +243,19 @@ namespace Vendr.Contrib.PaymentProviders
 
             try
             {
+                var id = order.TransactionInfo.TransactionId;
 
+                var basicAuth = Base64Encode(":" + settings.ApiKey);
+
+                var payment = $"https://api.quickpay.net/payments/{id}/capture"
+                    .WithHeader("Accept-Version", "v10")
+                    .WithHeader("Authorization", "Basic " + basicAuth)
+                    .WithHeader("Content-Type", "application/json")
+                    .PostJsonAsync(new
+                    {
+                        amount = DollarsToCents(order.TransactionInfo.AmountAuthorized.Value)
+                    })
+                    .ReceiveJson<QuickPayPaymentDto>().Result;
             }
             catch (Exception ex)
             {
@@ -249,7 +271,19 @@ namespace Vendr.Contrib.PaymentProviders
 
             try
             {
+                var id = order.TransactionInfo.TransactionId;
 
+                var basicAuth = Base64Encode(":" + settings.ApiKey);
+
+                var payment = $"https://api.quickpay.net/payments/{id}/refund"
+                    .WithHeader("Accept-Version", "v10")
+                    .WithHeader("Authorization", "Basic " + basicAuth)
+                    .WithHeader("Content-Type", "application/json")
+                    .PostJsonAsync(new
+                    {
+                        amount = DollarsToCents(order.TransactionInfo.AmountAuthorized.Value)
+                    })
+                    .ReceiveJson<QuickPayPaymentDto>().Result;
             }
             catch (Exception ex)
             {
