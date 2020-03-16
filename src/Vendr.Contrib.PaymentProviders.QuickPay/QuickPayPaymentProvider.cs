@@ -117,7 +117,7 @@ namespace Vendr.Contrib.PaymentProviders
             {
                 MetaData = new Dictionary<string, string>
                 {
-                    { "quickPayPaymentId", payment?.Id.ToString() },
+                    { "quickPayPaymentId", GetTransactionId(payment) },
                     { "quickPayPaymentHash", quickPayPaymentHash }
                 },
                 Form = new PaymentForm(paymentFormLink, FormMethod.Get)
