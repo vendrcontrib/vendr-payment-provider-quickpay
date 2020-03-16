@@ -1,4 +1,6 @@
-﻿using System.Runtime.Serialization;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
@@ -6,10 +8,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
     public class QuickPayPaymentDto
     {
         [DataMember(Name = "id")]
-        public int Id { get; set; }
+        public string Id { get; set; }
 
         [DataMember(Name = "merchant_id")]
-        public int MerchantId { get; set; }
+        public string MerchantId { get; set; }
 
         [DataMember(Name = "order_id")]
         public string OrderId { get; set; }
@@ -26,11 +28,11 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         [DataMember(Name = "state")]
         public string State { get; set; }
 
-        //[DataMember(Name = "metadata")]
-        //public dynamic MetaData { get; set; }
+        //[DataMember(Name = "operations")]
+        //public List<Operation> Operations { get; set; }
 
-        //[DataMember(Name = "link")]
-        //public object Link { get; set; }
+        //[DataMember(Name = "metadata")]
+        //public MetaData MetaData { get; set; }
 
         //[DataMember(Name = "test_mode")]
         //public bool TestMode { get; set; }
@@ -38,13 +40,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         //[DataMember(Name = "acquirer")]
         //public string Acquirer { get; set; }
 
-        //[DataMember(Name = "facilitator")]
-        //public string Facilitator { get; set; }
-
         //[DataMember(Name = "balance")]
         //public int Balance { get; set; }
 
         //[DataMember(Name = "fee")]
-        //public int Fee { get; set; }
+        //public int? Fee { get; set; }
     }
 }

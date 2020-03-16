@@ -88,9 +88,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MetaData.cs" />
+    <Compile Include="Operation.cs" />
     <Compile Include="Properties\VersionInfo.cs" />
-    <Compile Include="QuickPayLang.cs" />
+    <Compile Include="QuickPayCallbackDto.cs" />
     <Compile Include="QuickPayPaymentDto.cs" />
+    <Compile Include="QuickPayLang.cs" />
     <Compile Include="QuickPayPaymentLinkDto.cs" />
     <Compile Include="QuickPayPaymentProvider.cs" />
     <Compile Include="QuickPaySettings.cs" />

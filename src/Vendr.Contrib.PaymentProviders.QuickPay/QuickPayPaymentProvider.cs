@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -8,6 +9,7 @@ using System.Web;
 using System.Web.Mvc;
 using Flurl;
 using Flurl.Http;
+using Newtonsoft.Json;
 using Vendr.Contrib.PaymentProviders.QuickPay;
 using Vendr.Core;
 using Vendr.Core.Models;
@@ -166,21 +168,32 @@ namespace Vendr.Contrib.PaymentProviders
             {
                 if (ValidateChecksum(request, settings.PrivateKey))
                 {
-                    // Get operations to check if payment has been approved
-                    //var operations = callbackObject.Operations.LastOrDefault();
-                    // Check if payment has been approved
-                    //return operations != null && (operations.qp_status_code == "000" || operations.qp_status_code == "20000") && operations.qp_status_msg.ToLower() == "approved";
+                    var callback = ReadCallbackBody(request);
 
-                    return new CallbackResult
+                    var paymentStatus = GetPaymentStatus(callback);
+
+                    // Get operations to check if payment has been approved
+                    var operation = callback.Operations.LastOrDefault();
+
+                    // Check if payment has been approved
+                    if (operation != null)
                     {
-                        TransactionInfo = new TransactionInfo
+                        var totalAmount = operation.Amount;
+
+                        //var operations = callbackObject.Operations.LastOrDefault();
+                        // Check if payment has been approved
+                        //return operations != null && (operations.qp_status_code == "000" || operations.qp_status_code == "20000") && operations.qp_status_msg.ToLower() == "approved";
+
+                        return new CallbackResult
                         {
-                            AmountAuthorized = order.TotalPrice.Value.WithTax,
-                            TransactionFee = 0m,
-                            TransactionId = Guid.NewGuid().ToString("N"),
-                            PaymentStatus = PaymentStatus.Authorized
-                        }
-                    };
+                            TransactionInfo = new TransactionInfo
+                            {
+                                AmountAuthorized = totalAmount / 100M,
+                                TransactionId = callback.Id,
+                                PaymentStatus = paymentStatus
+                            }
+                        };
+                    }
                 }
                 else
                 {
@@ -219,16 +232,57 @@ namespace Vendr.Contrib.PaymentProviders
             return PaymentStatus.Initialized;
         }
 
+        protected PaymentStatus GetPaymentStatus(QuickPayCallbackDto payment)
+        {
+            // Possible Payment statuses:
+            // - initial
+            // - pending
+            // - new
+            // - rejected
+            // - processed
+
+            if (payment.State == "new")
+                return PaymentStatus.Authorized;
+
+            if (payment.State == "processed")
+                return PaymentStatus.Captured;
+
+            if (payment.State == "rejected")
+                return PaymentStatus.Error;
+
+            if (payment.State == "pending")
+                return PaymentStatus.PendingExternalSystem;
+
+            return PaymentStatus.Initialized;
+        }
+
         protected string GetTransactionId(QuickPayPaymentDto payment)
         {
             return payment?.Id.ToString();
+        }
+
+        public QuickPayCallbackDto ReadCallbackBody(HttpRequestBase request)
+        {
+            request.InputStream.Position = 0;
+
+            // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
+            var bodyStream = new StreamReader(request.InputStream);
+            bodyStream.BaseStream.Seek(0, SeekOrigin.Begin);
+
+            // Get body text
+            var bodyText = bodyStream.ReadToEnd();
+            request.InputStream.Position = 0;
+
+            // Deserialize json body text 
+            return JsonConvert.DeserializeObject<QuickPayCallbackDto>(bodyText);
         }
 
         private bool ValidateChecksum(HttpRequestBase request, string privateAccountKey)
         {
             var requestCheckSum = request.Headers["QuickPay-Checksum-Sha256"];
 
-            if (requestCheckSum == "") return false;
+            if (string.IsNullOrEmpty(requestCheckSum)) return false;
+
             var inputStream = request.InputStream;
             var bytes = new byte[inputStream.Length];
             request.InputStream.Position = 0;
