@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
@@ -22,16 +23,16 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         public string Last4 { get; set; }
 
         [DataMember(Name = "exp_month")]
-        public int ExpMonth { get; set; }
+        public int? ExpMonth { get; set; }
 
         [DataMember(Name = "exp_year")]
-        public int ExpYear { get; set; }
+        public int? ExpYear { get; set; }
 
         [DataMember(Name = "country")]
         public string Country { get; set; }
 
         [DataMember(Name = "is_3d_secure")]
-        public bool Is3dSecure { get; set; }
+        public bool? Is3dSecure { get; set; }
 
         [DataMember(Name = "hash")]
         public string Hash { get; set; }

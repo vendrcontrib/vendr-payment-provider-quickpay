@@ -96,7 +96,7 @@ namespace Vendr.Contrib.PaymentProviders
                             auto_fee = settings.AutoFee,
                             auto_capture = settings.AutoCapture
                         })
-                        .ReceiveJson<QuickPayPaymentLinkDto>().Result;
+                        .ReceiveJson<PaymentLinkUrl>().Result;
 
                     quickPayPaymentHash = Base64Encode(payment.Id + order.OrderNumber);
 
@@ -168,12 +168,10 @@ namespace Vendr.Contrib.PaymentProviders
             {
                 if (ValidateChecksum(request, settings.PrivateKey))
                 {
-                    var callback = ReadCallbackBody(request);
-
-                    var paymentStatus = GetPaymentStatus(callback);
+                    var payment = ReadCallbackBody(request);
 
                     // Get operations to check if payment has been approved
-                    var operation = callback.Operations.LastOrDefault();
+                    var operation = payment.Operations.LastOrDefault();
 
                     // Check if payment has been approved
                     if (operation != null)
@@ -189,8 +187,8 @@ namespace Vendr.Contrib.PaymentProviders
                             TransactionInfo = new TransactionInfo
                             {
                                 AmountAuthorized = totalAmount / 100M,
-                                TransactionId = callback.Id,
-                                PaymentStatus = paymentStatus
+                                TransactionId = GetTransactionId(payment),
+                                PaymentStatus = GetPaymentStatus(payment)
                             }
                         };
                     }
@@ -232,36 +230,12 @@ namespace Vendr.Contrib.PaymentProviders
             return PaymentStatus.Initialized;
         }
 
-        protected PaymentStatus GetPaymentStatus(QuickPayCallbackDto payment)
-        {
-            // Possible Payment statuses:
-            // - initial
-            // - pending
-            // - new
-            // - rejected
-            // - processed
-
-            if (payment.State == "new")
-                return PaymentStatus.Authorized;
-
-            if (payment.State == "processed")
-                return PaymentStatus.Captured;
-
-            if (payment.State == "rejected")
-                return PaymentStatus.Error;
-
-            if (payment.State == "pending")
-                return PaymentStatus.PendingExternalSystem;
-
-            return PaymentStatus.Initialized;
-        }
-
         protected string GetTransactionId(QuickPayPaymentDto payment)
         {
             return payment?.Id.ToString();
         }
 
-        public QuickPayCallbackDto ReadCallbackBody(HttpRequestBase request)
+        public QuickPayPaymentDto ReadCallbackBody(HttpRequestBase request)
         {
             request.InputStream.Position = 0;
 
@@ -274,7 +248,7 @@ namespace Vendr.Contrib.PaymentProviders
             request.InputStream.Position = 0;
 
             // Deserialize json body text 
-            return JsonConvert.DeserializeObject<QuickPayCallbackDto>(bodyText);
+            return JsonConvert.DeserializeObject<QuickPayPaymentDto>(bodyText);
         }
 
         private bool ValidateChecksum(HttpRequestBase request, string privateAccountKey)

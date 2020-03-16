@@ -28,22 +28,37 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         [DataMember(Name = "state")]
         public string State { get; set; }
 
-        //[DataMember(Name = "operations")]
-        //public List<Operation> Operations { get; set; }
+        [DataMember(Name = "operations")]
+        public List<Operation> Operations { get; set; }
 
-        //[DataMember(Name = "metadata")]
-        //public MetaData MetaData { get; set; }
+        [DataMember(Name = "metadata")]
+        public MetaData MetaData { get; set; }
 
-        //[DataMember(Name = "test_mode")]
-        //public bool TestMode { get; set; }
+        [DataMember(Name = "link")]
+        public PaymentLink Link { get; set; }
 
-        //[DataMember(Name = "acquirer")]
-        //public string Acquirer { get; set; }
+        [DataMember(Name = "test_mode")]
+        public bool TestMode { get; set; }
 
-        //[DataMember(Name = "balance")]
-        //public int Balance { get; set; }
+        [DataMember(Name = "acquirer")]
+        public string Acquirer { get; set; }
 
-        //[DataMember(Name = "fee")]
-        //public int? Fee { get; set; }
+        [DataMember(Name = "balance")]
+        public int Balance { get; set; }
+
+        [DataMember(Name = "fee")]
+        public int? Fee { get; set; }
+
+        [DataMember(Name = "created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [DataMember(Name = "updated_at")]
+        public DateTime UpdatedAt { get; set; }
+
+        [DataMember(Name = "retented_at")]
+        public DateTime? RetentedAt { get; set; }
+
+        [DataMember(Name = "deadline_at")]
+        public DateTime? DeadlineAt { get; set; }
     }
 }
