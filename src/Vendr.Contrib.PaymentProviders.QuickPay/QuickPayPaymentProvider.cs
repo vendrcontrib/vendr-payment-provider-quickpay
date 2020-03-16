@@ -99,21 +99,7 @@ namespace Vendr.Contrib.PaymentProviders
                         .ReceiveJson<PaymentLinkUrl>().Result;
 
                     quickPayPaymentHash = Base64Encode(payment.Id + order.OrderNumber);
-
-                    //var test = new ApiResult()
-                    //{
-                    //    TransactionInfo = new TransactionInfoUpdate()
-                    //    {
-                    //        TransactionId = GetTransactionId(payment),
-                    //        PaymentStatus = GetPaymentStatus(payment)
-                    //    },
-                    //    MetaData = new Dictionary<string, string>
-                    //    {
-                    //        { "quickPayPaymentId", payment.Id.ToString() },
-                    //        { "quickPayPaymentHash", hash }
-                    //    }
-                    //};
-
+                    
                     paymentFormLink = paymentLink.Url;
                 }
                 catch (Exception ex)
