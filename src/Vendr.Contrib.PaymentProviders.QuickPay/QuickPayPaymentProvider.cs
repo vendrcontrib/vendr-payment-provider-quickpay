@@ -26,6 +26,11 @@ namespace Vendr.Contrib.PaymentProviders
             : base(vendr)
         { }
 
+        public override bool CanCancelPayments => true;
+        public override bool CanCapturePayments => true;
+        public override bool CanRefundPayments => true;
+        public override bool CanFetchPaymentStatus => true;
+
         public override bool FinalizeAtContinueUrl => true;
 
         public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]{
@@ -190,6 +195,68 @@ namespace Vendr.Contrib.PaymentProviders
             }
 
             return CallbackResult.Empty;
+        }
+
+        public override ApiResult FetchPaymentStatus(OrderReadOnly order, QuickPaySettings settings)
+        {
+            try
+            {
+
+            }
+            catch (Exception ex)
+            {
+                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - FetchPaymentStatus");
+            }
+
+            return ApiResult.Empty;
+        }
+
+        public override ApiResult CancelPayment(OrderReadOnly order, QuickPaySettings settings)
+        {
+            // POST: /payments/{id}/cancel
+
+            try
+            {
+
+            }
+            catch (Exception ex)
+            {
+                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - CancelPayment");
+            }
+
+            return ApiResult.Empty;
+        }
+
+        public override ApiResult CapturePayment(OrderReadOnly order, QuickPaySettings settings)
+        {
+            // POST: /payments/{id}/capture
+
+            try
+            {
+
+            }
+            catch (Exception ex)
+            {
+                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - CapturePayment");
+            }
+
+            return ApiResult.Empty;
+        }
+
+        public override ApiResult RefundPayment(OrderReadOnly order, QuickPaySettings settings)
+        {
+            // POST: /payments/{id}/refund
+
+            try
+            {
+
+            }
+            catch (Exception ex)
+            {
+                Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - RefundPayment");
+            }
+
+            return ApiResult.Empty;
         }
 
         protected PaymentStatus GetPaymentStatus(QuickPayPaymentDto payment)
