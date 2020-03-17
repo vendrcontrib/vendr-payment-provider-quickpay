@@ -212,6 +212,15 @@ namespace Vendr.Contrib.PaymentProviders
                     .WithHeader("Authorization", "Basic " + basicAuth)
                     .WithHeader("Content-Type", "application/json")
                     .GetJsonAsync<QuickPayPaymentDto>().Result;
+
+                return new ApiResult()
+                {
+                    TransactionInfo = new TransactionInfoUpdate()
+                    {
+                        TransactionId = GetTransactionId(payment),
+                        PaymentStatus = GetPaymentStatus(payment)
+                    }
+                };
             }
             catch (Exception ex)
             {
@@ -237,16 +246,6 @@ namespace Vendr.Contrib.PaymentProviders
                     .WithHeader("Content-Type", "application/json")
                     .PostUrlEncodedAsync(null)
                     .ReceiveJson<QuickPayPaymentDto>().Result;
-
-                return new ApiResult()
-                {
-                    TransactionInfo = new TransactionInfoUpdate()
-                    {
-                        TransactionId = GetTransactionId(payment),
-                        PaymentStatus = GetPaymentStatus(payment)
-                    }
-                };
-
             }
             catch (Exception ex)
             {
