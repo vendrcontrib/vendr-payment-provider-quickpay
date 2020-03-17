@@ -199,9 +199,19 @@ namespace Vendr.Contrib.PaymentProviders
 
         public override ApiResult FetchPaymentStatus(OrderReadOnly order, QuickPaySettings settings)
         {
+            // GET: /payments/{id}
+
             try
             {
+                var id = order.TransactionInfo.TransactionId;
 
+                var basicAuth = Base64Encode(":" + settings.ApiKey);
+
+                var payment = $"https://api.quickpay.net/payments/{id}"
+                    .WithHeader("Accept-Version", "v10")
+                    .WithHeader("Authorization", "Basic " + basicAuth)
+                    .WithHeader("Content-Type", "application/json")
+                    .GetJsonAsync<QuickPayPaymentDto>().Result;
             }
             catch (Exception ex)
             {
@@ -227,6 +237,15 @@ namespace Vendr.Contrib.PaymentProviders
                     .WithHeader("Content-Type", "application/json")
                     .PostUrlEncodedAsync(null)
                     .ReceiveJson<QuickPayPaymentDto>().Result;
+
+                return new ApiResult()
+                {
+                    TransactionInfo = new TransactionInfoUpdate()
+                    {
+                        TransactionId = GetTransactionId(payment),
+                        PaymentStatus = GetPaymentStatus(payment)
+                    }
+                };
 
             }
             catch (Exception ex)
