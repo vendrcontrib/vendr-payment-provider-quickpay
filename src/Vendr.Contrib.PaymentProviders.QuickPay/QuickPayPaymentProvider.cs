@@ -66,7 +66,7 @@ namespace Vendr.Contrib.PaymentProviders
             var quickPayPaymentHash = order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
             var quickPayPaymentLinkHash = order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
 
-            if (quickPayPaymentHash != HashPayment(quickPayPaymentId, order.OrderNumber, currencyCode, orderAmount))
+            if (quickPayPaymentHash != GetPaymentHash(quickPayPaymentId, order.OrderNumber, currencyCode, orderAmount))
             {
                 try
                 {
@@ -105,7 +105,7 @@ namespace Vendr.Contrib.PaymentProviders
                         })
                         .ReceiveJson<PaymentLinkUrl>().Result;
 
-                    quickPayPaymentHash = HashPayment(payment.Id, order.OrderNumber, currencyCode, orderAmount);
+                    quickPayPaymentHash = GetPaymentHash(payment.Id, order.OrderNumber, currencyCode, orderAmount);
                     
                     paymentFormLink = paymentLink.Url;
                 }
@@ -126,7 +126,7 @@ namespace Vendr.Contrib.PaymentProviders
                 {
                     { "quickPayPaymentId", GetTransactionId(payment) },
                     { "quickPayPaymentHash", quickPayPaymentHash },
-                    { "quickPayPaymentLinkHash", Base64Encode(paymentFormLink) }
+                    { "quickPayPaymentLinkHash", quickPayPaymentLinkHash }
                 },
                 Form = new PaymentForm(paymentFormLink, FormMethod.Get)
             };
@@ -358,7 +358,7 @@ namespace Vendr.Contrib.PaymentProviders
             return JsonConvert.DeserializeObject<QuickPayPaymentDto>(bodyText);
         }
 
-        private string HashPayment(string paymentId, string orderNumber, string currency, string amount)
+        private string GetPaymentHash(string paymentId, string orderNumber, string currency, string amount)
         {
             return Base64Encode(paymentId + orderNumber + currency + amount);
         }
