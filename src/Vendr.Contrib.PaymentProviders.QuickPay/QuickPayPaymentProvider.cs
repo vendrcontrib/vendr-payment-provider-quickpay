@@ -41,9 +41,10 @@ namespace Vendr.Contrib.PaymentProviders
         public override PaymentFormResult GenerateForm(OrderReadOnly order, string continueUrl, string cancelUrl, string callbackUrl, QuickPaySettings settings)
         {
             var currency = Vendr.Services.CurrencyService.GetCurrency(order.CurrencyId);
+            var currencyCode = currency.Code.ToUpperInvariant();
 
             // Ensure currency has valid ISO 4217 code
-            if (!Iso4217.CurrencyCodes.ContainsKey(currency.Code.ToUpperInvariant()))
+            if (!Iso4217.CurrencyCodes.ContainsKey(currencyCode))
             {
                 throw new Exception("Currency must a valid ISO 4217 currency code: " + currency.Name);
             }
@@ -60,12 +61,13 @@ namespace Vendr.Contrib.PaymentProviders
             Enum.TryParse(settings.Lang, true, out QuickPayLang lang);
 
             QuickPayPaymentDto payment = null;
-            string quickPayPaymentHash = string.Empty;
 
-            var quickPayPaymentId = order.Properties["quickPayPaymentId"];
+            var quickPayPaymentId = order.Properties["quickPayPaymentId"]?.Value;
+            var quickPayPaymentHash = order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
+            var quickPayPaymentLinkHash = order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
 
-            //if (string.IsNullOrEmpty(quickPayPaymentId))
-            //{
+            if (quickPayPaymentHash != HashPayment(quickPayPaymentId, order.OrderNumber, currencyCode, orderAmount))
+            {
                 try
                 {
                     // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
@@ -79,7 +81,7 @@ namespace Vendr.Contrib.PaymentProviders
                         .PostJsonAsync(new
                         {
                             order_id = order.OrderNumber,
-                            currency = currency.Code
+                            currency = currencyCode
                         })
                         .ReceiveJson<QuickPayPaymentDto>().Result;
 
@@ -103,7 +105,7 @@ namespace Vendr.Contrib.PaymentProviders
                         })
                         .ReceiveJson<PaymentLinkUrl>().Result;
 
-                    quickPayPaymentHash = Base64Encode(payment.Id + order.OrderNumber);
+                    quickPayPaymentHash = HashPayment(payment.Id, order.OrderNumber, currencyCode, orderAmount);
                     
                     paymentFormLink = paymentLink.Url;
                 }
@@ -111,24 +113,24 @@ namespace Vendr.Contrib.PaymentProviders
                 {
                     Vendr.Log.Error<QuickPayPaymentProvider>(ex, "QuickPay - error creating payment.");
                 }
-            //}
-            //else
-            //{
-            //    // Get payment link from order properties.
-            //    paymentFormLink = string.Empty;
-            //}
+            }
+            else
+            {
+                // Get payment link from order properties.
+                paymentFormLink = Base64Decode(quickPayPaymentLinkHash);
+            }
 
             return new PaymentFormResult()
             {
                 MetaData = new Dictionary<string, string>
                 {
                     { "quickPayPaymentId", GetTransactionId(payment) },
-                    { "quickPayPaymentHash", quickPayPaymentHash }
+                    { "quickPayPaymentHash", quickPayPaymentHash },
+                    { "quickPayPaymentLinkHash", Base64Encode(paymentFormLink) }
                 },
                 Form = new PaymentForm(paymentFormLink, FormMethod.Get)
             };
         }
-
         public override string GetCancelUrl(OrderReadOnly order, QuickPaySettings settings)
         {
             settings.MustNotBeNull("settings");
@@ -354,6 +356,11 @@ namespace Vendr.Contrib.PaymentProviders
 
             // Deserialize json body text 
             return JsonConvert.DeserializeObject<QuickPayPaymentDto>(bodyText);
+        }
+
+        private string HashPayment(string paymentId, string orderNumber, string currency, string amount)
+        {
+            return Base64Encode(paymentId + orderNumber + currency + amount);
         }
 
         private bool ValidateChecksum(HttpRequestBase request, string privateAccountKey)
