@@ -171,19 +171,22 @@ namespace Vendr.Contrib.PaymentProviders
                     {
                         var totalAmount = operation.Amount;
 
-                        //var operations = callbackObject.Operations.LastOrDefault();
-                        // Check if payment has been approved
-                        //return operations != null && (operations.qp_status_code == "000" || operations.qp_status_code == "20000") && operations.qp_status_msg.ToLower() == "approved";
-
-                        return new CallbackResult
+                        if (operation.QuickPayStatusCode == "20000" || operation.AcquirerStatusCode == "000")
                         {
-                            TransactionInfo = new TransactionInfo
+                            return new CallbackResult
                             {
-                                AmountAuthorized = totalAmount / 100M,
-                                TransactionId = GetTransactionId(payment),
-                                PaymentStatus = GetPaymentStatus(payment)
-                            }
-                        };
+                                TransactionInfo = new TransactionInfo
+                                {
+                                    AmountAuthorized = totalAmount / 100M,
+                                    TransactionId = GetTransactionId(payment),
+                                    PaymentStatus = GetPaymentStatus(payment)
+                                }
+                            };
+                        }
+                        else
+                        {
+                            Vendr.Log.Warn<QuickPayPaymentProvider>($"QuickPay [{order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
+                        }   
                     }
                 }
                 else
