@@ -50,7 +50,7 @@ namespace Vendr.Contrib.PaymentProviders
             }
 
             string paymentFormLink = string.Empty;
-            var orderAmount = (order.TotalPrice.Value.WithTax * 100M).ToString("0", CultureInfo.InvariantCulture);
+            var orderAmount = AmountToMinorUnits(order.TotalPrice.Value.WithTax).ToString("0", CultureInfo.InvariantCulture);
 
             var paymentMethods = settings.PaymentMethods?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                    .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -175,7 +175,7 @@ namespace Vendr.Contrib.PaymentProviders
                             {
                                 TransactionInfo = new TransactionInfo
                                 {
-                                    AmountAuthorized = totalAmount / 100M,
+                                    AmountAuthorized = AmountFromMinorUnits(totalAmount),
                                     TransactionId = GetTransactionId(payment),
                                     PaymentStatus = GetPaymentStatus(payment)
                                 }
