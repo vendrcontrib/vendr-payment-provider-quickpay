@@ -276,7 +276,7 @@ namespace Vendr.Contrib.PaymentProviders
                     .WithHeader("Content-Type", "application/json")
                     .PostJsonAsync(new
                     {
-                        amount = DollarsToCents(order.TransactionInfo.AmountAuthorized.Value)
+                        amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
                     })
                     .ReceiveJson<QuickPayPaymentDto>().Result;
             }
@@ -304,7 +304,7 @@ namespace Vendr.Contrib.PaymentProviders
                     .WithHeader("Content-Type", "application/json")
                     .PostJsonAsync(new
                     {
-                        amount = DollarsToCents(order.TransactionInfo.AmountAuthorized.Value)
+                        amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
                     })
                     .ReceiveJson<QuickPayPaymentDto>().Result;
             }
