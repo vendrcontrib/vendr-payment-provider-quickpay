@@ -45,7 +45,7 @@ namespace Vendr.Contrib.PaymentProviders
         public string Lang { get; set; }
 
         [PaymentProviderSetting(Name = "Accepted Payment Methods",
-            Description = "A comma separated list of Payment Methods to accept. To use negation just put a “!” in front the those you do not wish to accept.",
+            Description = "A comma separated list of Payment Methods to accept. To use negation just put a \"!\" in front the those you do not wish to accept.",
             SortOrder = 1000)]
         public string PaymentMethods { get; set; }
 
