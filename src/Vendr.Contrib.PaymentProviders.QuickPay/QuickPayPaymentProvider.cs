@@ -85,9 +85,6 @@ namespace Vendr.Contrib.PaymentProviders
                         })
                         .ReceiveJson<QuickPayPaymentDto>().Result;
 
-                    // Set "quickPaymentId" order property (payment id)
-                    // Set "quickPayHash" order property (base64 hash of payment id + order number)
-
                     var paymentLink = $"https://api.quickpay.net/payments/{payment.Id}/link"
                         .WithHeader("Accept-Version", "v10")
                         .WithHeader("Authorization", "Basic " + basicAuth)
