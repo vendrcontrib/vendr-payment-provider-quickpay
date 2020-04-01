@@ -60,8 +60,6 @@ namespace Vendr.Contrib.PaymentProviders
             // Parse language - default language is English.
             Enum.TryParse(settings.Lang, true, out QuickPayLang lang);
 
-            QuickPayPaymentDto payment = null;
-
             var quickPayPaymentId = order.Properties["quickPayPaymentId"]?.Value;
             var quickPayPaymentHash = order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
             var quickPayPaymentLinkHash = order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
@@ -74,7 +72,7 @@ namespace Vendr.Contrib.PaymentProviders
 
                     var basicAuth = Base64Encode(":" + settings.ApiKey);
 
-                    payment = $"https://api.quickpay.net/payments"
+                    var payment = $"https://api.quickpay.net/payments"
                         .WithHeader("Accept-Version", "v10")
                         .WithHeader("Authorization", "Basic " + basicAuth)
                         .WithHeader("Content-Type", "application/json")
@@ -84,6 +82,8 @@ namespace Vendr.Contrib.PaymentProviders
                             currency = currencyCode
                         })
                         .ReceiveJson<QuickPayPaymentDto>().Result;
+
+                    quickPayPaymentId = GetTransactionId(payment);
 
                     var paymentLink = $"https://api.quickpay.net/payments/{payment.Id}/link"
                         .WithHeader("Accept-Version", "v10")
@@ -101,10 +101,11 @@ namespace Vendr.Contrib.PaymentProviders
                             auto_capture = settings.AutoCapture
                         })
                         .ReceiveJson<PaymentLinkUrl>().Result;
-
-                    quickPayPaymentHash = GetPaymentHash(payment.Id, order.OrderNumber, currencyCode, orderAmount);
                     
                     paymentFormLink = paymentLink.Url;
+
+                    quickPayPaymentHash = GetPaymentHash(payment.Id, order.OrderNumber, currencyCode, orderAmount);
+                    quickPayPaymentLinkHash = Base64Encode(paymentFormLink);
                 }
                 catch (Exception ex)
                 {
@@ -121,7 +122,7 @@ namespace Vendr.Contrib.PaymentProviders
             {
                 MetaData = new Dictionary<string, string>
                 {
-                    { "quickPayPaymentId", GetTransactionId(payment) },
+                    { "quickPayPaymentId", quickPayPaymentId },
                     { "quickPayPaymentHash", quickPayPaymentHash },
                     { "quickPayPaymentLinkHash", quickPayPaymentLinkHash }
                 },
