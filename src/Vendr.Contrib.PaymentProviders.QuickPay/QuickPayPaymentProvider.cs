@@ -19,7 +19,7 @@ using Vendr.PaymentProviders.QuickPay;
 
 namespace Vendr.Contrib.PaymentProviders
 {
-    [PaymentProvider("quickpay-v10", "QuickPay V10", "QuickPay V10 payment provider", Icon = "icon-invoice")]
+    [PaymentProvider("quickpay-v10", "QuickPay V10", "QuickPay V10 payment provider")]
     public class QuickPayPaymentProvider : PaymentProviderBase<QuickPaySettings>
     {
         public QuickPayPaymentProvider(VendrContext vendr)
