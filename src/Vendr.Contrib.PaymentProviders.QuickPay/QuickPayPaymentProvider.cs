@@ -10,14 +10,12 @@ using System.Web.Mvc;
 using Flurl;
 using Flurl.Http;
 using Newtonsoft.Json;
-using Vendr.Contrib.PaymentProviders.QuickPay;
 using Vendr.Core;
 using Vendr.Core.Models;
 using Vendr.Core.Web.Api;
 using Vendr.Core.Web.PaymentProviders;
-using Vendr.PaymentProviders.QuickPay;
 
-namespace Vendr.Contrib.PaymentProviders
+namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
     [PaymentProvider("quickpay-v10", "QuickPay V10", "QuickPay V10 payment provider")]
     public class QuickPayPaymentProvider : PaymentProviderBase<QuickPaySettings>

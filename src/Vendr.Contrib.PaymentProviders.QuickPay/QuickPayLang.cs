@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace Vendr.PaymentProviders.QuickPay
+namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
     public enum QuickPayLang
     {
