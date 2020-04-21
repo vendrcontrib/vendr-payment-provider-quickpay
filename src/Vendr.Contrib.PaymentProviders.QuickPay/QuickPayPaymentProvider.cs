@@ -81,7 +81,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                     quickPayPaymentId = GetTransactionId(payment);
 
-                    var paymentLink = client.CreatePaymentLink(payment.Id, new
+                    var paymentLink = client.CreatePaymentLink(payment.Id.ToString(), new
                     {
                         amount = orderAmount,
                         language = lang.ToString(),
@@ -95,7 +95,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                     paymentFormLink = paymentLink.Url;
 
-                    quickPayPaymentHash = GetPaymentHash(payment.Id, order.OrderNumber, currencyCode, orderAmount);
+                    quickPayPaymentHash = GetPaymentHash(payment.Id.ToString(), order.OrderNumber, currencyCode, orderAmount);
                     quickPayPaymentLinkHash = Base64Encode(paymentFormLink);
                 }
                 catch (Exception ex)
