@@ -7,8 +7,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 using System.Web.Mvc;
-using Flurl;
-using Flurl.Http;
 using Newtonsoft.Json;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
