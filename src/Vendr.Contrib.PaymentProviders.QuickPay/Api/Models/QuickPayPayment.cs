@@ -1,64 +1,63 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 
-namespace Vendr.Contrib.PaymentProviders.QuickPay
+namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
 {
-    [DataContract]
-    public class QuickPayPaymentDto
+    public class QuickPayPayment
     {
-        [DataMember(Name = "id")]
+        [JsonProperty("id")]
         public string Id { get; set; }
 
-        [DataMember(Name = "merchant_id")]
+        [JsonProperty("merchant_id")]
         public string MerchantId { get; set; }
 
-        [DataMember(Name = "order_id")]
+        [JsonProperty("order_id")]
         public string OrderId { get; set; }
 
-        [DataMember(Name = "accepted")]
+        [JsonProperty("accepted")]
         public bool Accepted { get; set; }
 
-        [DataMember(Name = "type")]
+        [JsonProperty("type")]
         public string Type { get; set; }
 
-        [DataMember(Name = "currency")]
+        [JsonProperty("currency")]
         public string Currency { get; set; }
 
-        [DataMember(Name = "state")]
+        [JsonProperty("state")]
         public string State { get; set; }
 
-        [DataMember(Name = "operations")]
+        [JsonProperty("operations")]
         public List<Operation> Operations { get; set; }
 
-        [DataMember(Name = "metadata")]
+        [JsonProperty("metadata")]
         public MetaData MetaData { get; set; }
 
-        [DataMember(Name = "link")]
+        [JsonProperty("link")]
         public PaymentLink Link { get; set; }
 
-        [DataMember(Name = "test_mode")]
+        [JsonProperty("test_mode")]
         public bool TestMode { get; set; }
 
-        [DataMember(Name = "acquirer")]
+        [JsonProperty("acquirer")]
         public string Acquirer { get; set; }
 
-        [DataMember(Name = "balance")]
+        [JsonProperty("balance")]
         public int Balance { get; set; }
 
-        [DataMember(Name = "fee")]
+        [JsonProperty("fee")]
         public int? Fee { get; set; }
 
-        [DataMember(Name = "created_at")]
+        [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; }
 
-        [DataMember(Name = "updated_at")]
+        [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; set; }
 
-        [DataMember(Name = "retented_at")]
+        [JsonProperty("retented_at")]
         public DateTime? RetentedAt { get; set; }
 
-        [DataMember(Name = "deadline_at")]
+        [JsonProperty("deadline_at")]
         public DateTime? DeadlineAt { get; set; }
     }
 }

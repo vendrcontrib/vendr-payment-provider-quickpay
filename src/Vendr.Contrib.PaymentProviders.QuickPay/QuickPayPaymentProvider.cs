@@ -10,6 +10,8 @@ using System.Web.Mvc;
 using Flurl;
 using Flurl.Http;
 using Newtonsoft.Json;
+using Vendr.Contrib.PaymentProviders.QuickPay.Api;
+using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
 using Vendr.Core;
 using Vendr.Core.Models;
 using Vendr.Core.Web.Api;
@@ -68,38 +70,29 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 {
                     // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
 
-                    var basicAuth = Base64Encode(":" + settings.ApiKey);
+                    var clientConfig = GetQuickPayClientConfig(settings);
+                    var client = new QuickPayClient(clientConfig);
 
-                    var payment = $"https://api.quickpay.net/payments"
-                        .WithHeader("Accept-Version", "v10")
-                        .WithHeader("Authorization", "Basic " + basicAuth)
-                        .WithHeader("Content-Type", "application/json")
-                        .PostJsonAsync(new
-                        {
-                            order_id = order.OrderNumber,
-                            currency = currencyCode
-                        })
-                        .ReceiveJson<QuickPayPaymentDto>().Result;
+                    var payment = client.CreatePayment(new
+                    {
+                        order_id = order.OrderNumber,
+                        currency = currencyCode
+                    });
 
                     quickPayPaymentId = GetTransactionId(payment);
 
-                    var paymentLink = $"https://api.quickpay.net/payments/{payment.Id}/link"
-                        .WithHeader("Accept-Version", "v10")
-                        .WithHeader("Authorization", "Basic " + basicAuth)
-                        .WithHeader("Content-Type", "application/json")
-                        .PutJsonAsync(new
-                        {
-                            amount = orderAmount,
-                            language = lang.ToString(),
-                            continue_url = continueUrl,
-                            cancel_url = cancelUrl,
-                            callback_url = callbackUrl,
-                            payment_methods = (paymentMethods != null && paymentMethods.Length > 0 ? string.Join(",", paymentMethods) : null),
-                            auto_fee = settings.AutoFee,
-                            auto_capture = settings.AutoCapture
-                        })
-                        .ReceiveJson<PaymentLinkUrl>().Result;
-                    
+                    var paymentLink = client.CreatePaymentLink(payment.Id, new
+                    {
+                        amount = orderAmount,
+                        language = lang.ToString(),
+                        continue_url = continueUrl,
+                        cancel_url = cancelUrl,
+                        callback_url = callbackUrl,
+                        payment_methods = (paymentMethods != null && paymentMethods.Length > 0 ? string.Join(",", paymentMethods) : null),
+                        auto_fee = settings.AutoFee,
+                        auto_capture = settings.AutoCapture
+                    });
+
                     paymentFormLink = paymentLink.Url;
 
                     quickPayPaymentHash = GetPaymentHash(payment.Id, order.OrderNumber, currencyCode, orderAmount);
@@ -206,13 +199,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 var id = order.TransactionInfo.TransactionId;
 
-                var basicAuth = Base64Encode(":" + settings.ApiKey);
+                var clientConfig = GetQuickPayClientConfig(settings);
+                var client = new QuickPayClient(clientConfig);
 
-                var payment = $"https://api.quickpay.net/payments/{id}"
-                    .WithHeader("Accept-Version", "v10")
-                    .WithHeader("Authorization", "Basic " + basicAuth)
-                    .WithHeader("Content-Type", "application/json")
-                    .GetJsonAsync<QuickPayPaymentDto>().Result;
+                var payment = client.GetPayment(id);
 
                 return new ApiResult()
                 {
@@ -239,14 +229,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 var id = order.TransactionInfo.TransactionId;
 
-                var basicAuth = Base64Encode(":" + settings.ApiKey);
+                var clientConfig = GetQuickPayClientConfig(settings);
+                var client = new QuickPayClient(clientConfig);
 
-                var payment = $"https://api.quickpay.net/payments/{id}/cancel"
-                    .WithHeader("Accept-Version", "v10")
-                    .WithHeader("Authorization", "Basic " + basicAuth)
-                    .WithHeader("Content-Type", "application/json")
-                    .PostUrlEncodedAsync(null)
-                    .ReceiveJson<QuickPayPaymentDto>().Result;
+                var payment = client.CancelPayment(id);
 
                 return new ApiResult()
                 {
@@ -273,17 +259,13 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 var id = order.TransactionInfo.TransactionId;
 
-                var basicAuth = Base64Encode(":" + settings.ApiKey);
+                var clientConfig = GetQuickPayClientConfig(settings);
+                var client = new QuickPayClient(clientConfig);
 
-                var payment = $"https://api.quickpay.net/payments/{id}/capture"
-                    .WithHeader("Accept-Version", "v10")
-                    .WithHeader("Authorization", "Basic " + basicAuth)
-                    .WithHeader("Content-Type", "application/json")
-                    .PostJsonAsync(new
-                    {
-                        amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
-                    })
-                    .ReceiveJson<QuickPayPaymentDto>().Result;
+                var payment = client.CapturePayment(id, new
+                {
+                    amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
+                });
 
                 return new ApiResult()
                 {
@@ -310,17 +292,13 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 var id = order.TransactionInfo.TransactionId;
 
-                var basicAuth = Base64Encode(":" + settings.ApiKey);
+                var clientConfig = GetQuickPayClientConfig(settings);
+                var client = new QuickPayClient(clientConfig);
 
-                var payment = $"https://api.quickpay.net/payments/{id}/refund"
-                    .WithHeader("Accept-Version", "v10")
-                    .WithHeader("Authorization", "Basic " + basicAuth)
-                    .WithHeader("Content-Type", "application/json")
-                    .PostJsonAsync(new
-                    {
-                        amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
-                    })
-                    .ReceiveJson<QuickPayPaymentDto>().Result;
+                var payment = client.RefundPayment(id, new
+                {
+                    amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
+                });
 
                 return new ApiResult()
                 {
@@ -339,7 +317,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             return ApiResult.Empty;
         }
 
-        protected PaymentStatus GetPaymentStatus(QuickPayPaymentDto payment)
+        protected PaymentStatus GetPaymentStatus(QuickPayPayment payment)
         {
             // Possible Payment statuses:
             // - initial
@@ -363,12 +341,23 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             return PaymentStatus.Initialized;
         }
 
-        protected string GetTransactionId(QuickPayPaymentDto payment)
+        protected string GetTransactionId(QuickPayPayment payment)
         {
             return payment?.Id.ToString();
         }
 
-        public QuickPayPaymentDto ReadCallbackBody(HttpRequestBase request)
+        protected QuickPayClientConfig GetQuickPayClientConfig(QuickPaySettings settings)
+        {
+            var basicAuth = Base64Encode(":" + settings.ApiKey);
+
+            return new QuickPayClientConfig
+            {
+                BaseUrl = "https://api.quickpay.net",
+                Authorization = "Basic " + basicAuth
+            };
+        }
+
+        public QuickPayPayment ReadCallbackBody(HttpRequestBase request)
         {
             request.InputStream.Position = 0;
 
@@ -381,7 +370,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             request.InputStream.Position = 0;
 
             // Deserialize json body text 
-            return JsonConvert.DeserializeObject<QuickPayPaymentDto>(bodyText);
+            return JsonConvert.DeserializeObject<QuickPayPayment>(bodyText);
         }
 
         private string GetPaymentHash(string paymentId, string orderNumber, string currency, string amount)
