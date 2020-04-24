@@ -50,12 +50,12 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
         /// If true, will add acquirer fee to the amount
         /// </summary>
         [JsonProperty("auto_fee")]
-        public bool AutoFee { get; set; }
+        public bool? AutoFee { get; set; }
 
         /// <summary>
         /// If true, will capture the transaction after authorize succeeds
         /// </summary>
         [JsonProperty("auto_capture")]
-        public bool AutoCapture { get; set; }
+        public bool? AutoCapture { get; set; }
     }
 }

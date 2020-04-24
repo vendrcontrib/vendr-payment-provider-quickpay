@@ -118,6 +118,6 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
         /// Parent subscription id (only recurring)
         /// </summary>
         [JsonProperty("subscription_id")]
-        public int SubscriptionId { get; set; }
+        public int? SubscriptionId { get; set; }
     }
 }
