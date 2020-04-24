@@ -35,15 +35,15 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
         public QuickPayPayment GetPayment(string paymentId)
         {
             return Request($"/payments/{paymentId}", (req) => req
-                .WithHeader("Content-Type", "application/json")
-                .PostUrlEncodedAsync(null)
-                .ReceiveJson<QuickPayPayment>());
+                .GetJsonAsync<QuickPayPayment>());
         }
 
         public QuickPayPayment CancelPayment(string paymentId)
         {
             return Request($"/payments/{paymentId}/cancel", (req) => req
-                .GetJsonAsync<QuickPayPayment>());
+                .WithHeader("Content-Type", "application/json")
+                .PostJsonAsync(null)
+                .ReceiveJson<QuickPayPayment>());
         }
 
         public QuickPayPayment CapturePayment(string paymentId, object data)
