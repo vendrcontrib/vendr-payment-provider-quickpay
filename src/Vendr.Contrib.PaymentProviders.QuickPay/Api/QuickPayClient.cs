@@ -42,7 +42,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
         {
             return Request($"/payments/{paymentId}/cancel", (req) => req
                 .WithHeader("Content-Type", "application/json")
-                .SetQueryParam("synchronized", null)
+                .SetQueryParam("synchronized", string.Empty)
                 .PostJsonAsync(null)
                 .ReceiveJson<QuickPayPayment>());
         }
@@ -51,7 +51,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
         {
             return Request($"/payments/{paymentId}/capture", (req) => req
                 .WithHeader("Content-Type", "application/json")
-                .SetQueryParam("synchronized", null)
+                .SetQueryParam("synchronized", string.Empty)
                 .PostJsonAsync(data)
                 .ReceiveJson<QuickPayPayment>());
         }
@@ -60,7 +60,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
         {
             return Request($"/payments/{paymentId}/refund", (req) => req
                 .WithHeader("Content-Type", "application/json")
-                .SetQueryParam("synchronized", null)
+                .SetQueryParam("synchronized", string.Empty)
                 .PostJsonAsync(data)
                 .ReceiveJson<QuickPayPayment>());
         }
