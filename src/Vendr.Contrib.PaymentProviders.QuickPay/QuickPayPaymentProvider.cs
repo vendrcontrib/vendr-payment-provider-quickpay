@@ -204,14 +204,21 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                 var payment = client.GetPayment(id);
 
-                return new ApiResult()
+                Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
+
+                if (lastCompletedOperation != null)
                 {
-                    TransactionInfo = new TransactionInfoUpdate()
+                    var paymentStatus = GetPaymentStatus(lastCompletedOperation);
+
+                    return new ApiResult()
                     {
-                        TransactionId = GetTransactionId(payment),
-                        PaymentStatus = GetPaymentStatus(payment)
-                    }
-                };
+                        TransactionInfo = new TransactionInfoUpdate()
+                        {
+                            TransactionId = GetTransactionId(payment),
+                            PaymentStatus = paymentStatus
+                        }
+                    };
+                }
             }
             catch (Exception ex)
             {
