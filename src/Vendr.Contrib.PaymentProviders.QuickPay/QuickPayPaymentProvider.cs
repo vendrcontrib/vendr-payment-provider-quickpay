@@ -160,13 +160,15 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                         if (operation.QuickPayStatusCode == "20000" || operation.AcquirerStatusCode == "000")
                         {
+                            var paymentStatus = GetPaymentStatus(operation);
+
                             return new CallbackResult
                             {
                                 TransactionInfo = new TransactionInfo
                                 {
                                     AmountAuthorized = AmountFromMinorUnits(totalAmount),
                                     TransactionId = GetTransactionId(payment),
-                                    PaymentStatus = GetPaymentStatus(payment)
+                                    PaymentStatus = paymentStatus
                                 }
                             };
                         }
@@ -232,14 +234,21 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                 var payment = client.CancelPayment(id);
 
-                return new ApiResult()
+                Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
+
+                if (lastCompletedOperation != null)
                 {
-                    TransactionInfo = new TransactionInfoUpdate()
+                    var paymentStatus = GetPaymentStatus(lastCompletedOperation);
+
+                    return new ApiResult()
                     {
-                        TransactionId = GetTransactionId(payment),
-                        PaymentStatus = GetPaymentStatus(payment)
-                    }
-                };
+                        TransactionInfo = new TransactionInfoUpdate()
+                        {
+                            TransactionId = GetTransactionId(payment),
+                            PaymentStatus = paymentStatus
+                        }
+                    };
+                }
             }
             catch (Exception ex)
             {
@@ -265,14 +274,21 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                     amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
                 });
 
-                return new ApiResult()
+                Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
+
+                if (lastCompletedOperation != null)
                 {
-                    TransactionInfo = new TransactionInfoUpdate()
+                    var paymentStatus = GetPaymentStatus(lastCompletedOperation);
+
+                    return new ApiResult()
                     {
-                        TransactionId = GetTransactionId(payment),
-                        PaymentStatus = GetPaymentStatus(payment)
-                    }
-                };
+                        TransactionInfo = new TransactionInfoUpdate()
+                        {
+                            TransactionId = GetTransactionId(payment),
+                            PaymentStatus = paymentStatus
+                        }
+                    };
+                }
             }
             catch (Exception ex)
             {
@@ -298,14 +314,21 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                     amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
                 });
 
-                return new ApiResult()
+                Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
+
+                if (lastCompletedOperation != null)
                 {
-                    TransactionInfo = new TransactionInfoUpdate()
+                    var paymentStatus = GetPaymentStatus(lastCompletedOperation);
+
+                    return new ApiResult()
                     {
-                        TransactionId = GetTransactionId(payment),
-                        PaymentStatus = GetPaymentStatus(payment)
-                    }
-                };
+                        TransactionInfo = new TransactionInfoUpdate()
+                        {
+                            TransactionId = GetTransactionId(payment),
+                            PaymentStatus = paymentStatus
+                        }
+                    };
+                }
             }
             catch (Exception ex)
             {
@@ -315,26 +338,19 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             return ApiResult.Empty;
         }
 
-        protected PaymentStatus GetPaymentStatus(QuickPayPayment payment)
+        protected PaymentStatus GetPaymentStatus(Operation operation)
         {
-            // Possible Payment statuses:
-            // - initial
-            // - pending
-            // - new
-            // - rejected
-            // - processed
-
-            if (payment.State == "new")
+            if (operation.Type == "authorize")
                 return PaymentStatus.Authorized;
 
-            if (payment.State == "processed")
+            if (operation.Type == "capture")
                 return PaymentStatus.Captured;
 
-            if (payment.State == "rejected")
+            if (operation.Type == "refund")
                 return PaymentStatus.Error;
 
-            if (payment.State == "pending")
-                return PaymentStatus.PendingExternalSystem;
+            if (operation.Type == "cancel")
+                return PaymentStatus.Cancelled;
 
             return PaymentStatus.Initialized;
         }
