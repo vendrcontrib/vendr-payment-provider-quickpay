@@ -354,7 +354,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 return PaymentStatus.Captured;
 
             if (operation.Type == "refund")
-                return PaymentStatus.Error;
+                return PaymentStatus.Refunded;
 
             if (operation.Type == "cancel")
                 return PaymentStatus.Cancelled;
