@@ -2,7 +2,7 @@
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
-    public class QuickPaySettings
+    public class QuickPaySettingsBase
     {
         [PaymentProviderSetting(Name = "Continue URL",
             Description = "The URL to continue to after this provider has done processing. eg: /continue/",
@@ -48,15 +48,5 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             Description = "A comma separated list of Payment Methods to accept. To use negation just put a \"!\" in front the those you do not wish to accept.",
             SortOrder = 1000)]
         public string PaymentMethods { get; set; }
-
-        [PaymentProviderSetting(Name = "Auto Fee",
-            Description = "Flag indicating whether to automatically calculate and apply the fee from the acquirer.",
-            SortOrder = 1100)]
-        public bool AutoFee { get; set; }
-
-        [PaymentProviderSetting(Name = "Auto Capture",
-            Description = "Flag indicating whether to immediately capture the payment, or whether to just authorize the payment for later (manual) capture.",
-            SortOrder = 1200)]
-        public bool AutoCapture { get; set; }
     }
 }
