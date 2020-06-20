@@ -17,10 +17,10 @@ using Vendr.Core.Web.PaymentProviders;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
-    [PaymentProvider("quickpay-v10-checkout-onetime", "QuickPay V10 (One Time)", "QuickPay V10 payment provider for one time payments")]
-    public class QuickPayCheckoutOneTimePaymentProvider : QuickPayPaymentProviderBase<QuickPayCheckoutOneTimeSettings>
+    [PaymentProvider("quickpay-v10-checkout", "QuickPay V10", "QuickPay V10 payment provider for one time payments")]
+    public class QuickPayCheckoutPaymentProvider : QuickPayPaymentProviderBase<QuickPayCheckoutSettings>
     {
-        public QuickPayCheckoutOneTimePaymentProvider(VendrContext vendr)
+        public QuickPayCheckoutPaymentProvider(VendrContext vendr)
             : base(vendr)
         { }
 
@@ -36,7 +36,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             new TransactionMetaDataDefinition("quickPayPaymentHash", "QuickPay Payment Hash")
         };
 
-        public override PaymentFormResult GenerateForm(OrderReadOnly order, string continueUrl, string cancelUrl, string callbackUrl, QuickPayCheckoutOneTimeSettings settings)
+        public override PaymentFormResult GenerateForm(OrderReadOnly order, string continueUrl, string cancelUrl, string callbackUrl, QuickPayCheckoutSettings settings)
         {
             var currency = Vendr.Services.CurrencyService.GetCurrency(order.CurrencyId);
             var currencyCode = currency.Code.ToUpperInvariant();
@@ -98,7 +98,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 }
                 catch (Exception ex)
                 {
-                    Vendr.Log.Error<QuickPayCheckoutOneTimePaymentProvider>(ex, "QuickPay - error creating payment.");
+                    Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - error creating payment.");
                 }
             }
             else
@@ -119,7 +119,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             };
         }
 
-        public override CallbackResult ProcessCallback(OrderReadOnly order, HttpRequestBase request, QuickPayCheckoutOneTimeSettings settings)
+        public override CallbackResult ProcessCallback(OrderReadOnly order, HttpRequestBase request, QuickPayCheckoutSettings settings)
         {
             try
             {
@@ -151,24 +151,24 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         }
                         else
                         {
-                            Vendr.Log.Warn<QuickPayCheckoutOneTimePaymentProvider>($"QuickPay [{order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
+                            Vendr.Log.Warn<QuickPayCheckoutPaymentProvider>($"QuickPay [{order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
                         }   
                     }
                 }
                 else
                 {
-                    Vendr.Log.Warn<QuickPayCheckoutOneTimePaymentProvider>($"QuickPay [{order.OrderNumber}] - Checksum validation failed");
+                    Vendr.Log.Warn<QuickPayCheckoutPaymentProvider>($"QuickPay [{order.OrderNumber}] - Checksum validation failed");
                 }
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutOneTimePaymentProvider>(ex, "QuickPay - ProcessCallback");
+                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - ProcessCallback");
             }
 
             return CallbackResult.Empty;
         }
 
-        public override ApiResult FetchPaymentStatus(OrderReadOnly order, QuickPayCheckoutOneTimeSettings settings)
+        public override ApiResult FetchPaymentStatus(OrderReadOnly order, QuickPayCheckoutSettings settings)
         {
             // GET: /payments/{id}
 
@@ -199,13 +199,13 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutOneTimePaymentProvider>(ex, "QuickPay - FetchPaymentStatus");
+                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - FetchPaymentStatus");
             }
 
             return ApiResult.Empty;
         }
 
-        public override ApiResult CancelPayment(OrderReadOnly order, QuickPayCheckoutOneTimeSettings settings)
+        public override ApiResult CancelPayment(OrderReadOnly order, QuickPayCheckoutSettings settings)
         {
             // POST: /payments/{id}/cancel
 
@@ -236,13 +236,13 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutOneTimePaymentProvider>(ex, "QuickPay - CancelPayment");
+                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - CancelPayment");
             }
 
             return ApiResult.Empty;
         }
 
-        public override ApiResult CapturePayment(OrderReadOnly order, QuickPayCheckoutOneTimeSettings settings)
+        public override ApiResult CapturePayment(OrderReadOnly order, QuickPayCheckoutSettings settings)
         {
             // POST: /payments/{id}/capture
 
@@ -276,13 +276,13 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutOneTimePaymentProvider>(ex, "QuickPay - CapturePayment");
+                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - CapturePayment");
             }
 
             return ApiResult.Empty;
         }
 
-        public override ApiResult RefundPayment(OrderReadOnly order, QuickPayCheckoutOneTimeSettings settings)
+        public override ApiResult RefundPayment(OrderReadOnly order, QuickPayCheckoutSettings settings)
         {
             // POST: /payments/{id}/refund
 
@@ -316,7 +316,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutOneTimePaymentProvider>(ex, "QuickPay - RefundPayment");
+                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - RefundPayment");
             }
 
             return ApiResult.Empty;

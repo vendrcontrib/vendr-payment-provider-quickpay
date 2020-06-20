@@ -93,11 +93,11 @@
     <Compile Include="Api\Models\Operation.cs" />
     <Compile Include="Properties\VersionInfo.cs" />
     <Compile Include="Api\Models\QuickPayPayment.cs" />
-    <Compile Include="QuickPayCheckoutOneTimeSettings.cs" />
+    <Compile Include="QuickPayCheckoutSettings.cs" />
     <Compile Include="QuickPayLang.cs" />
     <Compile Include="Api\Models\PaymentLink.cs" />
     <Compile Include="Api\Models\PaymentLinkUrl.cs" />
-    <Compile Include="QuickPayCheckoutOneTimePaymentProvider.cs" />
+    <Compile Include="QuickPayCheckoutPaymentProvider.cs" />
     <Compile Include="QuickPayPaymentProviderBase.cs" />
     <Compile Include="QuickPaySettingsBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

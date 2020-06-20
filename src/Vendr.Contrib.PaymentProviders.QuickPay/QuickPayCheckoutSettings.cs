@@ -2,7 +2,7 @@
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
-    public class QuickPayCheckoutOneTimeSettings : QuickPaySettingsBase
+    public class QuickPayCheckoutSettings : QuickPaySettingsBase
     {
         [PaymentProviderSetting(Name = "Auto Fee",
             Description = "Flag indicating whether to automatically calculate and apply the fee from the acquirer.",
