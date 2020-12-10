@@ -48,7 +48,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
 
             string paymentFormLink = string.Empty;
-            var orderAmount = AmountToMinorUnits(order.TotalPrice.Value.WithTax).ToString("0", CultureInfo.InvariantCulture);
+            var orderAmount = AmountToMinorUnits(order.TransactionAmount.Value).ToString("0", CultureInfo.InvariantCulture);
 
             var paymentMethods = settings.PaymentMethods?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                    .Where(x => !string.IsNullOrWhiteSpace(x))
