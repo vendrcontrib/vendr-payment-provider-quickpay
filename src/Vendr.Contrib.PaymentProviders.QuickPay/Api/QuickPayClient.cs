@@ -16,56 +16,56 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
             _config = config;
         }
 
-        public QuickPayPayment CreatePayment(object data)
+        public async Task<QuickPayPayment> CreatePaymentAsync(object data)
         {
-            return Request("/payments", (req) => req
+            return await Request("/payments", (req) => req
                 .WithHeader("Content-Type", "application/json")
                 .PostJsonAsync(data)
                 .ReceiveJson<QuickPayPayment>());
         }
 
-        public PaymentLinkUrl CreatePaymentLink(string paymentId, object data)
+        public async Task<PaymentLinkUrl> CreatePaymentLinkAsync(string paymentId, object data)
         {
-            return Request($"/payments/{paymentId}/link", (req) => req
+            return await Request($"/payments/{paymentId}/link", (req) => req
                 .WithHeader("Content-Type", "application/json")
                 .PutJsonAsync(data)
                 .ReceiveJson<PaymentLinkUrl>());
         }
 
-        public QuickPayPayment GetPayment(string paymentId)
+        public async Task<QuickPayPayment> GetPaymentAsync(string paymentId)
         {
-            return Request($"/payments/{paymentId}", (req) => req
+            return await Request($"/payments/{paymentId}", (req) => req
                 .GetJsonAsync<QuickPayPayment>());
         }
 
-        public QuickPayPayment CancelPayment(string paymentId)
+        public async Task<QuickPayPayment> CancelPaymentAsync(string paymentId)
         {
-            return Request($"/payments/{paymentId}/cancel", (req) => req
+            return await Request($"/payments/{paymentId}/cancel", (req) => req
                 .WithHeader("Content-Type", "application/json")
                 .SetQueryParam("synchronized", string.Empty)
                 .PostJsonAsync(null)
                 .ReceiveJson<QuickPayPayment>());
         }
 
-        public QuickPayPayment CapturePayment(string paymentId, object data)
+        public async Task<QuickPayPayment> CapturePaymentAsync(string paymentId, object data)
         {
-            return Request($"/payments/{paymentId}/capture", (req) => req
+            return await Request($"/payments/{paymentId}/capture", (req) => req
                 .WithHeader("Content-Type", "application/json")
                 .SetQueryParam("synchronized", string.Empty)
                 .PostJsonAsync(data)
                 .ReceiveJson<QuickPayPayment>());
         }
 
-        public QuickPayPayment RefundPayment(string paymentId, object data)
+        public async Task<QuickPayPayment> RefundPaymentAsync(string paymentId, object data)
         {
-            return Request($"/payments/{paymentId}/refund", (req) => req
+            return await Request($"/payments/{paymentId}/refund", (req) => req
                 .WithHeader("Content-Type", "application/json")
                 .SetQueryParam("synchronized", string.Empty)
                 .PostJsonAsync(data)
                 .ReceiveJson<QuickPayPayment>());
         }
 
-        private TResult Request<TResult>(string url, Func<IFlurlRequest, Task<TResult>> func)
+        private async Task<TResult> Request<TResult>(string url, Func<IFlurlRequest, Task<TResult>> func)
         {
             var result = default(TResult);
 
@@ -85,7 +85,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
                         .WithHeader("Accept-Version", "v10")
                         .WithHeader("Authorization", _config.Authorization);
 
-                result = func.Invoke(req).Result;
+                result = await func.Invoke(req);
             }
             catch (FlurlHttpException ex)
             {

@@ -71,7 +71,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                     var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                     var client = new QuickPayClient(clientConfig);
 
-                    var payment = client.CreatePayment(new
+                    var payment = await client.CreatePaymentAsync(new
                     {
                         order_id = ctx.Order.OrderNumber,
                         currency = currencyCode
@@ -79,7 +79,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                     quickPayPaymentId = GetTransactionId(payment);
 
-                    var paymentLink = client.CreatePaymentLink(payment.Id.ToString(), new
+                    var paymentLink = await client.CreatePaymentLinkAsync(payment.Id.ToString(), new
                     {
                         amount = orderAmount,
                         language = lang.ToString(),
@@ -123,9 +123,9 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         {
             try
             {
-                if (ValidateChecksum(ctx.Request, ctx.Settings.PrivateKey))
+                if (await ValidateChecksum(ctx.Request, ctx.Settings.PrivateKey))
                 {
-                    var payment = ReadCallbackBody(ctx.Request);
+                    var payment = await ParseCallbackAsync(ctx.Request);
 
                     // Get operations to check if payment has been approved
                     var operation = payment.Operations.LastOrDefault();
@@ -179,7 +179,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.GetPayment(id);
+                var payment = await client.GetPaymentAsync(id);
 
                 Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
 
@@ -216,7 +216,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.CancelPayment(id);
+                var payment = await client.CancelPaymentAsync(id);
 
                 Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
 
@@ -253,7 +253,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.CapturePayment(id, new
+                var payment = await client.CapturePaymentAsync(id, new
                 {
                     amount = AmountToMinorUnits(ctx.Order.TransactionInfo.AmountAuthorized.Value)
                 });
@@ -293,7 +293,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.RefundPayment(id, new
+                var payment = await client.RefundPaymentAsync(id, new
                 {
                     amount = AmountToMinorUnits(ctx.Order.TransactionInfo.AmountAuthorized.Value)
                 });
@@ -322,37 +322,47 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             return ApiResult.Empty;
         }
 
-        public QuickPayPayment ReadCallbackBody(HttpRequestBase request)
+        public async Task<QuickPayPayment> ParseCallbackAsync(HttpRequestMessage request)
         {
-            request.InputStream.Position = 0;
+            using (var stream = await request.Content.ReadAsStreamAsync())
+            {
+                if (stream.CanSeek)
+                    stream.Seek(0, SeekOrigin.Begin);
 
-            // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
-            var bodyStream = new StreamReader(request.InputStream);
-            bodyStream.BaseStream.Seek(0, SeekOrigin.Begin);
+                // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
 
-            // Get body text
-            var bodyText = bodyStream.ReadToEnd();
-            request.InputStream.Position = 0;
+                using (var reader = new StreamReader(stream))
+                {
+                    var json = await reader.ReadToEndAsync();
 
-            // Deserialize json body text 
-            return JsonConvert.DeserializeObject<QuickPayPayment>(bodyText);
+                    // Deserialize json body text 
+                    return JsonConvert.DeserializeObject<QuickPayPayment>(json);
+                }
+            }
         }
 
-        private bool ValidateChecksum(HttpRequestMessage request, string privateAccountKey)
+        private async Task<bool> ValidateChecksum(HttpRequestMessage request, string privateAccountKey)
         {
-            var requestCheckSum = request.Headers["QuickPay-Checksum-Sha256"];
+            var requestCheckSum = request.Headers.GetValues("QuickPay-Checksum-Sha256").FirstOrDefault();
 
             if (string.IsNullOrEmpty(requestCheckSum)) return false;
 
-            var inputStream = request.InputStream;
-            var bytes = new byte[inputStream.Length];
-            request.InputStream.Position = 0;
-            request.InputStream.Read(bytes, 0, bytes.Length);
-            request.InputStream.Position = 0;
-            var content = Encoding.UTF8.GetString(bytes);
-            var calculatedChecksum = Checksum(content, privateAccountKey);
+            using (var stream = await request.Content.ReadAsStreamAsync())
+            {
+                if (stream.CanSeek)
+                    stream.Seek(0, SeekOrigin.Begin);
 
-            return requestCheckSum.Equals(calculatedChecksum);
+                // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
+
+                using (var reader = new StreamReader(stream))
+                {
+                    var json = await reader.ReadToEndAsync();
+
+                    var calculatedChecksum = Checksum(json, privateAccountKey);
+
+                    return requestCheckSum.Equals(calculatedChecksum);
+                }
+            }
         }
 
         private string Checksum(string content, string privateKey)
