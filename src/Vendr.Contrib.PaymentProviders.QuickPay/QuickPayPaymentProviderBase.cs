@@ -1,40 +1,47 @@
-﻿using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
-using Vendr.Core;
+﻿using Vendr.Common.Logging;
+using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
+using Vendr.Core.Api;
 using Vendr.Core.Models;
-using Vendr.Core.Web.Api;
-using Vendr.Core.Web.PaymentProviders;
+using Vendr.Core.PaymentProviders;
+using Vendr.Extensions;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
-    public abstract class QuickPayPaymentProviderBase<TSettings> : PaymentProviderBase<TSettings>
-            where TSettings : QuickPaySettingsBase, new()
+    public abstract class QuickPayPaymentProviderBase<TSelf, TSettings> : PaymentProviderBase<TSettings>
+        where TSelf : QuickPayPaymentProviderBase<TSelf, TSettings>
+        where TSettings : QuickPaySettingsBase, new()
     {
-        public QuickPayPaymentProviderBase(VendrContext vendr)
+        protected readonly ILogger<TSelf> _logger;
+
+        public QuickPayPaymentProviderBase(VendrContext vendr,
+            ILogger<TSelf> logger)
             : base(vendr)
-        { }
-
-        public override string GetCancelUrl(OrderReadOnly order, TSettings settings)
         {
-            settings.MustNotBeNull("settings");
-            settings.CancelUrl.MustNotBeNull("settings.CancelUrl");
-
-            return settings.CancelUrl;
+            _logger = logger;
         }
 
-        public override string GetContinueUrl(OrderReadOnly order, TSettings settings)
+        public override string GetCancelUrl(PaymentProviderContext<TSettings> ctx)
         {
-            settings.MustNotBeNull("settings");
-            settings.ContinueUrl.MustNotBeNull("settings.ContinueUrl");
+            ctx.Settings.MustNotBeNull("settings");
+            ctx.Settings.CancelUrl.MustNotBeNull("settings.CancelUrl");
 
-            return settings.ContinueUrl;
+            return ctx.Settings.CancelUrl;
         }
 
-        public override string GetErrorUrl(OrderReadOnly order, TSettings settings)
+        public override string GetContinueUrl(PaymentProviderContext<TSettings> ctx)
         {
-            settings.MustNotBeNull("settings");
-            settings.ErrorUrl.MustNotBeNull("settings.ErrorUrl");
+            ctx.Settings.MustNotBeNull("settings");
+            ctx.Settings.ContinueUrl.MustNotBeNull("settings.ContinueUrl");
 
-            return settings.ErrorUrl;
+            return ctx.Settings.ContinueUrl;
+        }
+
+        public override string GetErrorUrl(PaymentProviderContext<TSettings> ctx)
+        {
+            ctx.Settings.MustNotBeNull("settings");
+            ctx.Settings.ErrorUrl.MustNotBeNull("settings.ErrorUrl");
+
+            return ctx.Settings.ErrorUrl;
         }
 
         protected PaymentStatus GetPaymentStatus(Operation operation)
