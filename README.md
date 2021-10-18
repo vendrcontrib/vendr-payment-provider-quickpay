@@ -1,3 +1,3 @@
-# Vendr QuickPay Payment Provider
+﻿# Vendr QuickPay Payment Provider
 
-QuickPay Payment Provider for Vendr, the eCommerce package for Umbrao v8+
+QuickPay Payment Provider for Vendr, the eCommerce package for Umbraco
