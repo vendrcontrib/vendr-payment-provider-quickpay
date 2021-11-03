@@ -66,7 +66,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             return payment?.Id.ToString();
         }
 
-        protected string GetPaymentHash(string paymentId, string orderNumber, string currency, string amount)
+        protected string GetPaymentHash(string paymentId, string orderNumber, string currency, long amount)
         {
             return Base64Encode(paymentId + orderNumber + currency + amount);
         }

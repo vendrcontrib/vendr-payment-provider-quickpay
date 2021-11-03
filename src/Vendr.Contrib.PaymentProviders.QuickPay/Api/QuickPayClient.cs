@@ -16,7 +16,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
             _config = config;
         }
 
-        public async Task<QuickPayPayment> CreatePaymentAsync(object data)
+        public async Task<QuickPayPayment> CreatePaymentAsync(QuickPayPaymentRequest data)
         {
             return await Request("/payments", (req) => req
                 .WithHeader("Content-Type", "application/json")
@@ -24,7 +24,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
                 .ReceiveJson<QuickPayPayment>());
         }
 
-        public async Task<PaymentLinkUrl> CreatePaymentLinkAsync(string paymentId, object data)
+        public async Task<PaymentLinkUrl> CreatePaymentLinkAsync(string paymentId, QuickPayPaymentLinkRequest data)
         {
             return await Request($"/payments/{paymentId}/link", (req) => req
                 .WithHeader("Content-Type", "application/json")

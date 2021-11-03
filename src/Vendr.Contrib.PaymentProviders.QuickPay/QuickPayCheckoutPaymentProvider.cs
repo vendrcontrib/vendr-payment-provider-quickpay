@@ -48,7 +48,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
 
             string paymentFormLink = string.Empty;
-            var orderAmount = AmountToMinorUnits(ctx.Order.TransactionAmount.Value).ToString("0", CultureInfo.InvariantCulture);
+            var orderAmount = AmountToMinorUnits(ctx.Order.TransactionAmount.Value);
 
             var paymentMethods = ctx.Settings.PaymentMethods?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                    .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -71,24 +71,29 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                     var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                     var client = new QuickPayClient(clientConfig);
 
-                    var payment = await client.CreatePaymentAsync(new
+                    // QuickPay has a limit of order id between 4-20 characters.
+                    var orderReference = ctx.Order.OrderNumber.Length > 20
+                        ? ctx.Order.OrderNumber.TrimStart("ORDER-".ToCharArray())
+                        : ctx.Order.OrderNumber;
+
+                    var payment = await client.CreatePaymentAsync(new QuickPayPaymentRequest
                     {
-                        order_id = ctx.Order.OrderNumber,
-                        currency = currencyCode
+                        OrderId = orderReference,
+                        Currency = currencyCode
                     });
 
                     quickPayPaymentId = GetTransactionId(payment);
 
-                    var paymentLink = await client.CreatePaymentLinkAsync(payment.Id.ToString(), new
+                    var paymentLink = await client.CreatePaymentLinkAsync(payment.Id.ToString(), new QuickPayPaymentLinkRequest
                     {
-                        amount = orderAmount,
-                        language = lang.ToString(),
-                        continue_url = ctx.Urls.ContinueUrl,
-                        cancel_url = ctx.Urls.CancelUrl,
-                        callback_url = ctx.Urls.CallbackUrl,
-                        payment_methods = (paymentMethods != null && paymentMethods.Length > 0 ? string.Join(",", paymentMethods) : null),
-                        auto_fee = ctx.Settings.AutoFee,
-                        auto_capture = ctx.Settings.AutoCapture
+                        Amount = orderAmount,
+                        Language = lang.ToString(),
+                        ContinueUrl = ctx.Urls.ContinueUrl,
+                        CancelUrl = ctx.Urls.CancelUrl,
+                        CallbackUrl = ctx.Urls.CallbackUrl,
+                        PaymentMethods = paymentMethods?.Length > 0 ? string.Join(",", paymentMethods) : null,
+                        AutoFee = ctx.Settings.AutoFee,
+                        AutoCapture = ctx.Settings.AutoCapture
                     });
 
                     paymentFormLink = paymentLink.Url;
