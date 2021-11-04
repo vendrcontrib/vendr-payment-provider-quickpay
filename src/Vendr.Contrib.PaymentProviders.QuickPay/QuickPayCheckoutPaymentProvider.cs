@@ -81,22 +81,23 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                         if (orderNumberTemplate.Equals("{0}") == false)
                         {
+                            int placeholderLength = 3;
+
                             if (orderNumberTemplate.StartsWith("{0}"))
                             {
-                                var valueToTrim = orderNumberTemplate.Substring(3, orderNumberTemplate.Length);
+                                var start = orderNumberTemplate.IndexOf("{0}") + placeholderLength;
+                                var valueToTrim = orderNumberTemplate.Substring(start, orderNumberTemplate.Length - placeholderLength);
                                 orderReference = orderReference.TrimEnd(valueToTrim.ToCharArray());
                             }
                             else if (orderNumberTemplate.EndsWith("{0}"))
                             {
-                                var valueToTrim = orderNumberTemplate.Substring(0, orderNumberTemplate.Length - 3);
+                                var valueToTrim = orderNumberTemplate.Substring(0, orderNumberTemplate.Length - placeholderLength);
                                 orderReference = orderReference.TrimStart(valueToTrim.ToCharArray());
                             }
                             else if (orderNumberTemplate.Contains("{0}"))
                             {
-                                var start = orderNumberTemplate.IndexOf("{0}");
-                                var end = start + 3;
-                                var valueToTrim = orderNumberTemplate.Substring(start, end);
-                                orderReference = orderReference.TrimStart(valueToTrim.ToCharArray());
+                                var valueToTrim = orderNumberTemplate.Split("{0}".ToCharArray()).Where(x => !string.IsNullOrEmpty(x)).ToArray();
+                                orderReference = orderReference.TrimStart(valueToTrim[0].ToCharArray()).TrimEnd(valueToTrim[1].ToCharArray());
                             }
                         }
                     }
