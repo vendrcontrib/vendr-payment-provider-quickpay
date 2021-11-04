@@ -83,15 +83,20 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         {
                             if (orderNumberTemplate.StartsWith("{0}"))
                             {
-                                orderReference = orderReference.TrimEnd();
+                                var valueToTrim = orderNumberTemplate.Substring(3, orderNumberTemplate.Length);
+                                orderReference = orderReference.TrimEnd(valueToTrim.ToCharArray());
                             }
                             else if (orderNumberTemplate.EndsWith("{0}"))
                             {
-                                orderReference = orderReference.TrimStart();
+                                var valueToTrim = orderNumberTemplate.Substring(0, orderNumberTemplate.Length - 3);
+                                orderReference = orderReference.TrimStart(valueToTrim.ToCharArray());
                             }
                             else if (orderNumberTemplate.Contains("{0}"))
                             {
-
+                                var start = orderNumberTemplate.IndexOf("{0}");
+                                var end = start + 3;
+                                var valueToTrim = orderNumberTemplate.Substring(start, end);
+                                orderReference = orderReference.TrimStart(valueToTrim.ToCharArray());
                             }
                         }
                     }
