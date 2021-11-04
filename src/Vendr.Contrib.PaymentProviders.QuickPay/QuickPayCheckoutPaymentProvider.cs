@@ -70,11 +70,32 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                     var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                     var client = new QuickPayClient(clientConfig);
+                    
+                    var orderReference = ctx.Order.OrderNumber;
 
                     // QuickPay has a limit of order id between 4-20 characters.
-                    var orderReference = ctx.Order.OrderNumber.Length > 20
-                        ? ctx.Order.OrderNumber.TrimStart("ORDER-".ToCharArray())
-                        : ctx.Order.OrderNumber;
+                    if (orderReference.Length > 20)
+                    {
+                        var store = Vendr.Services.StoreService.GetStore(ctx.Order.StoreId);
+                        var orderNumberTemplate = store.OrderNumberTemplate;
+
+                        if (orderNumberTemplate == "{0}")
+                        {
+                            // Do nothing
+                        }
+                        else if (orderNumberTemplate.StartsWith("{0}"))
+                        {
+                            orderReference = orderReference.TrimEnd();
+                        }
+                        else if (orderNumberTemplate.EndsWith("{0}"))
+                        {
+                            orderReference = orderReference.TrimStart();
+                        }
+                        else if (orderNumberTemplate.Contains("{0}"))
+                        {
+                            
+                        }
+                    }
 
                     var payment = await client.CreatePaymentAsync(new QuickPayPaymentRequest
                     {
