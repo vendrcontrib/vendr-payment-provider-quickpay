@@ -81,23 +81,25 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                         if (orderNumberTemplate.Equals("{0}") == false)
                         {
-                            int placeholderLength = 3;
+                            var splitted = orderNumberTemplate.Split("{0}".ToCharArray())
+                                .Where(x => !string.IsNullOrEmpty(x))
+                                .ToArray();
 
-                            if (orderNumberTemplate.StartsWith("{0}"))
+                            if (orderNumberTemplate.StartsWith("{0}") && splitted.Length == 1)
                             {
-                                var start = orderNumberTemplate.IndexOf("{0}") + placeholderLength;
-                                var valueToTrim = orderNumberTemplate.Substring(start, orderNumberTemplate.Length - placeholderLength);
-                                orderReference = orderReference.TrimEnd(valueToTrim.ToCharArray());
+                                orderReference = orderReference
+                                    .TrimEnd(splitted[0].ToCharArray());
                             }
-                            else if (orderNumberTemplate.EndsWith("{0}"))
+                            else if (orderNumberTemplate.EndsWith("{0}") && splitted.Length == 1)
                             {
-                                var valueToTrim = orderNumberTemplate.Substring(0, orderNumberTemplate.Length - placeholderLength);
-                                orderReference = orderReference.TrimStart(valueToTrim.ToCharArray());
+                                orderReference = orderReference
+                                    .TrimStart(splitted[0].ToCharArray());
                             }
-                            else if (orderNumberTemplate.Contains("{0}"))
+                            else if (orderNumberTemplate.Contains("{0}") && splitted.Length == 2)
                             {
-                                var valueToTrim = orderNumberTemplate.Split("{0}".ToCharArray()).Where(x => !string.IsNullOrEmpty(x)).ToArray();
-                                orderReference = orderReference.TrimStart(valueToTrim[0].ToCharArray()).TrimEnd(valueToTrim[1].ToCharArray());
+                                orderReference = orderReference
+                                    .TrimStart(splitted[0].ToCharArray())
+                                    .TrimEnd(splitted[1].ToCharArray());
                             }
                         }
                     }
