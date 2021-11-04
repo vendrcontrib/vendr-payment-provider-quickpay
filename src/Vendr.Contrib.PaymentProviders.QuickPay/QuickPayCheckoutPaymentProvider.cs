@@ -79,21 +79,20 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         var store = Vendr.Services.StoreService.GetStore(ctx.Order.StoreId);
                         var orderNumberTemplate = store.OrderNumberTemplate;
 
-                        if (orderNumberTemplate == "{0}")
+                        if (orderNumberTemplate.Equals("{0}") == false)
                         {
-                            // Do nothing
-                        }
-                        else if (orderNumberTemplate.StartsWith("{0}"))
-                        {
-                            orderReference = orderReference.TrimEnd();
-                        }
-                        else if (orderNumberTemplate.EndsWith("{0}"))
-                        {
-                            orderReference = orderReference.TrimStart();
-                        }
-                        else if (orderNumberTemplate.Contains("{0}"))
-                        {
-                            
+                            if (orderNumberTemplate.StartsWith("{0}"))
+                            {
+                                orderReference = orderReference.TrimEnd();
+                            }
+                            else if (orderNumberTemplate.EndsWith("{0}"))
+                            {
+                                orderReference = orderReference.TrimStart();
+                            }
+                            else if (orderNumberTemplate.Contains("{0}"))
+                            {
+
+                            }
                         }
                     }
 
