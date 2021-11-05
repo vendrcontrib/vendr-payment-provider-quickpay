@@ -14,6 +14,7 @@ using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
 using Vendr.Core.Api;
 using Vendr.Core.Models;
 using Vendr.Core.PaymentProviders;
+using Vendr.Extensions;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
@@ -104,10 +105,18 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         }
                     }
 
+                    var metaData = new Dictionary<string, string>
+                    {
+                        { "orderReference", ctx.Order.GenerateOrderReference() },
+                        { "orderId", ctx.Order.Id.ToString("D") },
+                        { "orderNumber", ctx.Order.OrderNumber }
+                    };
+
                     var payment = await client.CreatePaymentAsync(new QuickPayPaymentRequest
                     {
                         OrderId = orderReference,
-                        Currency = currencyCode
+                        Currency = currencyCode,
+                        Variables = metaData
                     });
 
                     quickPayPaymentId = GetTransactionId(payment);

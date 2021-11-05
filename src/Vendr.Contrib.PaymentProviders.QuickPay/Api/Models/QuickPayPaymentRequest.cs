@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
 {
@@ -15,5 +16,11 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
         /// </summary>
         [JsonProperty("currency")]
         public string Currency { get; set; }
+
+        /// <summary>
+        /// Custom variables
+        /// </summary>
+        [JsonProperty("variables")]
+        public Dictionary<string, string> Variables { get; set; }
     }
 }
