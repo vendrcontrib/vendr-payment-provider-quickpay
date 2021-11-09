@@ -371,7 +371,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 if (stream.CanSeek)
                     stream.Seek(0, SeekOrigin.Begin);
 
-                // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
+                // Get quickpay callback body text - See parameters: https://learn.quickpay.net/tech-talk/api/callback/
 
                 using (var reader = new StreamReader(stream))
                 {
@@ -385,26 +385,14 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
         private async Task<bool> ValidateChecksum(HttpRequestMessage request, string privateAccountKey)
         {
-            var requestCheckSum = request.Headers.GetValues("QuickPay-Checksum-Sha256").FirstOrDefault();
+            var json = await request.Content.ReadAsStringAsync();
+            var checkSum = request.Headers.GetValues("QuickPay-Checksum-Sha256").FirstOrDefault();
 
-            if (string.IsNullOrEmpty(requestCheckSum)) return false;
+            if (string.IsNullOrEmpty(checkSum)) return false;
 
-            using (var stream = await request.Content.ReadAsStreamAsync())
-            {
-                if (stream.CanSeek)
-                    stream.Seek(0, SeekOrigin.Begin);
+            var calculatedChecksum = Checksum(json, privateAccountKey);
 
-                // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
-
-                using (var reader = new StreamReader(stream))
-                {
-                    var json = await reader.ReadToEndAsync();
-
-                    var calculatedChecksum = Checksum(json, privateAccountKey);
-
-                    return requestCheckSum.Equals(calculatedChecksum);
-                }
-            }
+            return checkSum.Equals(calculatedChecksum);
         }
 
         private string Checksum(string content, string privateKey)
