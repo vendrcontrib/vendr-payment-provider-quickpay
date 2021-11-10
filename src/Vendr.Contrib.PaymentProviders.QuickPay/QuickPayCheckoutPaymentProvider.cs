@@ -32,7 +32,9 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
         public override bool FinalizeAtContinueUrl => true;
 
-        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]{
+        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]
+        {
+            new TransactionMetaDataDefinition("quickPayOrderId", "QuickPay Order ID"),
             new TransactionMetaDataDefinition("quickPayPaymentId", "QuickPay Payment ID"),
             new TransactionMetaDataDefinition("quickPayPaymentHash", "QuickPay Payment Hash")
         };
@@ -59,6 +61,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             // Parse language - default language is English.
             Enum.TryParse(ctx.Settings.Lang, true, out QuickPayLang lang);
 
+            var quickPayOrderId = ctx.Order.Properties["quickPayOrderId"]?.Value;
             var quickPayPaymentId = ctx.Order.Properties["quickPayPaymentId"]?.Value;
             var quickPayPaymentHash = ctx.Order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
             var quickPayPaymentLinkHash = ctx.Order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
@@ -72,10 +75,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                     var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                     var client = new QuickPayClient(clientConfig);
                     
-                    var orderReference = ctx.Order.OrderNumber;
+                    var reference = ctx.Order.OrderNumber;
 
                     // QuickPay has a limit of order id between 4-20 characters.
-                    if (orderReference.Length > 20)
+                    if (reference.Length > 20)
                     {
                         var store = Vendr.Services.StoreService.GetStore(ctx.Order.StoreId);
                         var orderNumberTemplate = store.OrderNumberTemplate;
@@ -88,17 +91,17 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                             if (orderNumberTemplate.StartsWith("{0}") && splitted.Length == 1)
                             {
-                                orderReference = orderReference
+                                reference = reference
                                     .TrimEnd(splitted[0].ToCharArray());
                             }
                             else if (orderNumberTemplate.EndsWith("{0}") && splitted.Length == 1)
                             {
-                                orderReference = orderReference
+                                reference = reference
                                     .TrimStart(splitted[0].ToCharArray());
                             }
                             else if (orderNumberTemplate.Contains("{0}") && splitted.Length == 2)
                             {
-                                orderReference = orderReference
+                                reference = reference
                                     .TrimStart(splitted[0].ToCharArray())
                                     .TrimEnd(splitted[1].ToCharArray());
                             }
@@ -112,13 +115,15 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         { "orderNumber", ctx.Order.OrderNumber }
                     };
 
+                    quickPayOrderId = reference;
+
                     var payment = await client.CreatePaymentAsync(new QuickPayPaymentRequest
                     {
-                        OrderId = orderReference,
+                        OrderId = quickPayOrderId,
                         Currency = currencyCode,
                         Variables = metaData
                     });
-
+                    
                     quickPayPaymentId = GetTransactionId(payment);
 
                     var paymentLink = await client.CreatePaymentLinkAsync(payment.Id.ToString(), new QuickPayPaymentLinkRequest
@@ -153,6 +158,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 MetaData = new Dictionary<string, string>
                 {
+                    { "quickPayOrderId", quickPayOrderId },
                     { "quickPayPaymentId", quickPayPaymentId },
                     { "quickPayPaymentHash", quickPayPaymentHash },
                     { "quickPayPaymentLinkHash", quickPayPaymentLinkHash }
@@ -169,32 +175,39 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                 {
                     var payment = await ParseCallbackAsync(ctx.Request);
 
-                    // Get operations to check if payment has been approved
-                    var operation = payment.Operations.LastOrDefault();
-
-                    // Check if payment has been approved
-                    if (operation != null)
+                    if (VerifyOrder(ctx.Order, payment))
                     {
-                        var totalAmount = operation.Amount;
+                        // Get operations to check if payment has been approved
+                        var operation = payment.Operations.LastOrDefault();
 
-                        if (operation.QuickPayStatusCode == "20000" || operation.AcquirerStatusCode == "000")
+                        // Check if payment has been approved
+                        if (operation != null)
                         {
-                            var paymentStatus = GetPaymentStatus(operation);
+                            var totalAmount = operation.Amount;
 
-                            return new CallbackResult
+                            if (operation.QuickPayStatusCode == "20000" || operation.AcquirerStatusCode == "000")
                             {
-                                TransactionInfo = new TransactionInfo
+                                var paymentStatus = GetPaymentStatus(operation);
+
+                                return new CallbackResult
                                 {
-                                    AmountAuthorized = AmountFromMinorUnits(totalAmount),
-                                    TransactionId = GetTransactionId(payment),
-                                    PaymentStatus = paymentStatus
-                                }
-                            };
+                                    TransactionInfo = new TransactionInfo
+                                    {
+                                        AmountAuthorized = AmountFromMinorUnits(totalAmount),
+                                        TransactionId = GetTransactionId(payment),
+                                        PaymentStatus = paymentStatus
+                                    }
+                                };
+                            }
+                            else
+                            {
+                                _logger.Warn($"QuickPay [{ctx.Order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
+                            }
                         }
-                        else
-                        {
-                            _logger.Warn($"QuickPay [{ctx.Order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
-                        }   
+                    }
+                    else
+                    {
+                        _logger.Warn($"QuickPay [{ctx.Order.OrderNumber}] - Couldn't verify the order");
                     }
                 }
                 else
@@ -208,6 +221,27 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
 
             return CallbackResult.Empty;
+        }
+
+        private bool VerifyOrder(OrderReadOnly order, QuickPayPayment payment)
+        {
+            if (payment.Variables.Count > 0 && 
+                payment.Variables.TryGetValue("orderReference", out string orderReference))
+            {
+                if (order.GenerateOrderReference() == orderReference)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                if (order.Properties["quickPayOrderId"]?.Value == payment.OrderId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public override async Task<ApiResult> FetchPaymentStatusAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
