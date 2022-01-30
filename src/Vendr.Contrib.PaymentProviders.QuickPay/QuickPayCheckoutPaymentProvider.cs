@@ -85,25 +85,25 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
                         if (orderNumberTemplate.Equals("{0}") == false)
                         {
-                            var splitted = orderNumberTemplate.Split("{0}".ToCharArray())
-                                .Where(x => !string.IsNullOrEmpty(x))
-                                .ToArray();
+                            var index = orderNumberTemplate.IndexOf("{0}");
+                            var prefix = orderNumberTemplate.Substring(0, index);
+                            var suffix = orderNumberTemplate.Substring(index + 3, orderNumberTemplate.Length - (index + 3));
 
-                            if (orderNumberTemplate.StartsWith("{0}") && splitted.Length == 1)
+                            if (orderNumberTemplate.StartsWith("{0}"))
                             {
-                                reference = reference
-                                    .TrimEnd(splitted[0].ToCharArray());
+                                // Trim suffix
+                                reference = reference.Substring(0, reference.Length - suffix.Length);
                             }
-                            else if (orderNumberTemplate.EndsWith("{0}") && splitted.Length == 1)
+                            else if (orderNumberTemplate.EndsWith("{0}"))
                             {
-                                reference = reference
-                                    .TrimStart(splitted[0].ToCharArray());
+                                // Trim prefix
+                                reference = reference.Substring(index, reference.Length - index);
                             }
-                            else if (orderNumberTemplate.Contains("{0}") && splitted.Length == 2)
+                            else if (orderNumberTemplate.Contains("{0}"))
                             {
-                                reference = reference
-                                    .TrimStart(splitted[0].ToCharArray())
-                                    .TrimEnd(splitted[1].ToCharArray());
+                                // Trim prefix & suffix
+                                reference = reference.Substring(0, reference.Length - suffix.Length);
+                                reference = reference.Substring(index, reference.Length - index);
                             }
                         }
                     }
