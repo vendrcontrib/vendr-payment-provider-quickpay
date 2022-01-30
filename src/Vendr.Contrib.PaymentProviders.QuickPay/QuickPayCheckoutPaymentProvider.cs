@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -11,6 +10,7 @@ using Newtonsoft.Json;
 using Vendr.Common.Logging;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
+using Vendr.Contrib.PaymentProviders.QuickPay.Extensions;
 using Vendr.Core.Api;
 using Vendr.Core.Models;
 using Vendr.Core.PaymentProviders;
@@ -92,18 +92,17 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                             if (orderNumberTemplate.StartsWith("{0}"))
                             {
                                 // Trim suffix
-                                reference = reference.Substring(0, reference.Length - suffix.Length);
+                                reference = reference.TrimEnd(suffix);
                             }
                             else if (orderNumberTemplate.EndsWith("{0}"))
                             {
                                 // Trim prefix
-                                reference = reference.Substring(index, reference.Length - index);
+                                reference = reference.TrimStart(prefix);
                             }
                             else if (orderNumberTemplate.Contains("{0}"))
                             {
                                 // Trim prefix & suffix
-                                reference = reference.Substring(0, reference.Length - suffix.Length);
-                                reference = reference.Substring(index, reference.Length - index);
+                                reference = reference.TrimStart(prefix).TrimEnd(suffix);
                             }
                         }
                     }
