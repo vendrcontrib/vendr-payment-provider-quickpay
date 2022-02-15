@@ -3,25 +3,26 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
-using System.Web;
-using System.Web.Mvc;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Vendr.Common.Logging;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
-using Vendr.Core;
+using Vendr.Core.Api;
 using Vendr.Core.Models;
-using Vendr.Core.Web.Api;
-using Vendr.Core.Web.PaymentProviders;
+using Vendr.Core.PaymentProviders;
+using Vendr.Extensions;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
     [PaymentProvider("quickpay-v10-checkout", "QuickPay V10", "QuickPay V10 payment provider for one time payments")]
-    public class QuickPayCheckoutPaymentProvider : QuickPayPaymentProviderBase<QuickPayCheckoutSettings>
+    public class QuickPayCheckoutPaymentProvider : QuickPayPaymentProviderBase<QuickPayCheckoutPaymentProvider, QuickPayCheckoutSettings>
     {
-        public QuickPayCheckoutPaymentProvider(VendrContext vendr)
-            : base(vendr)
+        public QuickPayCheckoutPaymentProvider(VendrContext vendr, ILogger<QuickPayCheckoutPaymentProvider> logger)
+            : base(vendr, logger)
         { }
 
         public override bool CanCancelPayments => true;
@@ -31,14 +32,16 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
 
         public override bool FinalizeAtContinueUrl => true;
 
-        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]{
+        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]
+        {
+            new TransactionMetaDataDefinition("quickPayOrderId", "QuickPay Order ID"),
             new TransactionMetaDataDefinition("quickPayPaymentId", "QuickPay Payment ID"),
             new TransactionMetaDataDefinition("quickPayPaymentHash", "QuickPay Payment Hash")
         };
 
-        public override PaymentFormResult GenerateForm(OrderReadOnly order, string continueUrl, string cancelUrl, string callbackUrl, QuickPayCheckoutSettings settings)
+        public override async Task<PaymentFormResult> GenerateFormAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
         {
-            var currency = Vendr.Services.CurrencyService.GetCurrency(order.CurrencyId);
+            var currency = Vendr.Services.CurrencyService.GetCurrency(ctx.Order.CurrencyId);
             var currencyCode = currency.Code.ToUpperInvariant();
 
             // Ensure currency has valid ISO 4217 code
@@ -48,57 +51,101 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
 
             string paymentFormLink = string.Empty;
-            var orderAmount = AmountToMinorUnits(order.TransactionAmount.Value).ToString("0", CultureInfo.InvariantCulture);
+            var orderAmount = AmountToMinorUnits(ctx.Order.TransactionAmount.Value);
 
-            var paymentMethods = settings.PaymentMethods?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            var paymentMethods = ctx.Settings.PaymentMethods?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                    .Where(x => !string.IsNullOrWhiteSpace(x))
                    .Select(s => s.Trim())
                    .ToArray();
 
             // Parse language - default language is English.
-            Enum.TryParse(settings.Lang, true, out QuickPayLang lang);
+            Enum.TryParse(ctx.Settings.Lang, true, out QuickPayLang lang);
 
-            var quickPayPaymentId = order.Properties["quickPayPaymentId"]?.Value;
-            var quickPayPaymentHash = order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
-            var quickPayPaymentLinkHash = order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
+            var quickPayOrderId = ctx.Order.Properties["quickPayOrderId"]?.Value;
+            var quickPayPaymentId = ctx.Order.Properties["quickPayPaymentId"]?.Value;
+            var quickPayPaymentHash = ctx.Order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
+            var quickPayPaymentLinkHash = ctx.Order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
 
-            if (quickPayPaymentHash != GetPaymentHash(quickPayPaymentId, order.OrderNumber, currencyCode, orderAmount))
+            if (quickPayPaymentHash != GetPaymentHash(quickPayPaymentId, ctx.Order.OrderNumber, currencyCode, orderAmount))
             {
                 try
                 {
                     // https://learn.quickpay.net/tech-talk/guides/payments/#introduction-to-payments
 
-                    var clientConfig = GetQuickPayClientConfig(settings);
+                    var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                     var client = new QuickPayClient(clientConfig);
+                    
+                    var reference = ctx.Order.OrderNumber;
 
-                    var payment = client.CreatePayment(new
+                    // QuickPay has a limit of order id between 4-20 characters.
+                    if (reference.Length > 20)
                     {
-                        order_id = order.OrderNumber,
-                        currency = currencyCode
-                    });
+                        var store = Vendr.Services.StoreService.GetStore(ctx.Order.StoreId);
+                        var orderNumberTemplate = store.OrderNumberTemplate;
 
+                        if (orderNumberTemplate.Equals("{0}") == false)
+                        {
+                            var splitted = orderNumberTemplate.Split("{0}".ToCharArray())
+                                .Where(x => !string.IsNullOrEmpty(x))
+                                .ToArray();
+
+                            if (orderNumberTemplate.StartsWith("{0}") && splitted.Length == 1)
+                            {
+                                reference = reference
+                                    .TrimEnd(splitted[0].ToCharArray());
+                            }
+                            else if (orderNumberTemplate.EndsWith("{0}") && splitted.Length == 1)
+                            {
+                                reference = reference
+                                    .TrimStart(splitted[0].ToCharArray());
+                            }
+                            else if (orderNumberTemplate.Contains("{0}") && splitted.Length == 2)
+                            {
+                                reference = reference
+                                    .TrimStart(splitted[0].ToCharArray())
+                                    .TrimEnd(splitted[1].ToCharArray());
+                            }
+                        }
+                    }
+
+                    var metaData = new Dictionary<string, string>
+                    {
+                        { "orderReference", ctx.Order.GenerateOrderReference() },
+                        { "orderId", ctx.Order.Id.ToString("D") },
+                        { "orderNumber", ctx.Order.OrderNumber }
+                    };
+
+                    quickPayOrderId = reference;
+
+                    var payment = await client.CreatePaymentAsync(new QuickPayPaymentRequest
+                    {
+                        OrderId = quickPayOrderId,
+                        Currency = currencyCode,
+                        Variables = metaData
+                    });
+                    
                     quickPayPaymentId = GetTransactionId(payment);
 
-                    var paymentLink = client.CreatePaymentLink(payment.Id.ToString(), new
+                    var paymentLink = await client.CreatePaymentLinkAsync(payment.Id.ToString(), new QuickPayPaymentLinkRequest
                     {
-                        amount = orderAmount,
-                        language = lang.ToString(),
-                        continue_url = continueUrl,
-                        cancel_url = cancelUrl,
-                        callback_url = callbackUrl,
-                        payment_methods = (paymentMethods != null && paymentMethods.Length > 0 ? string.Join(",", paymentMethods) : null),
-                        auto_fee = settings.AutoFee,
-                        auto_capture = settings.AutoCapture
+                        Amount = orderAmount,
+                        Language = lang.ToString(),
+                        ContinueUrl = ctx.Urls.ContinueUrl,
+                        CancelUrl = ctx.Urls.CancelUrl,
+                        CallbackUrl = ctx.Urls.CallbackUrl,
+                        PaymentMethods = paymentMethods?.Length > 0 ? string.Join(",", paymentMethods) : null,
+                        AutoFee = ctx.Settings.AutoFee,
+                        AutoCapture = ctx.Settings.AutoCapture
                     });
 
                     paymentFormLink = paymentLink.Url;
 
-                    quickPayPaymentHash = GetPaymentHash(payment.Id.ToString(), order.OrderNumber, currencyCode, orderAmount);
+                    quickPayPaymentHash = GetPaymentHash(payment.Id.ToString(), ctx.Order.OrderNumber, currencyCode, orderAmount);
                     quickPayPaymentLinkHash = Base64Encode(paymentFormLink);
                 }
                 catch (Exception ex)
                 {
-                    Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - error creating payment.");
+                    _logger.Error(ex, "QuickPay - error creating payment.");
                 }
             }
             else
@@ -111,75 +158,104 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 MetaData = new Dictionary<string, string>
                 {
+                    { "quickPayOrderId", quickPayOrderId },
                     { "quickPayPaymentId", quickPayPaymentId },
                     { "quickPayPaymentHash", quickPayPaymentHash },
                     { "quickPayPaymentLinkHash", quickPayPaymentLinkHash }
                 },
-                Form = new PaymentForm(paymentFormLink, FormMethod.Get)
+                Form = new PaymentForm(paymentFormLink, PaymentFormMethod.Get)
             };
         }
 
-        public override CallbackResult ProcessCallback(OrderReadOnly order, HttpRequestBase request, QuickPayCheckoutSettings settings)
+        public override async Task<CallbackResult> ProcessCallbackAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
         {
             try
             {
-                if (ValidateChecksum(request, settings.PrivateKey))
+                if (await ValidateChecksum(ctx.Request, ctx.Settings.PrivateKey))
                 {
-                    var payment = ReadCallbackBody(request);
+                    var payment = await ParseCallbackAsync(ctx.Request);
 
-                    // Get operations to check if payment has been approved
-                    var operation = payment.Operations.LastOrDefault();
-
-                    // Check if payment has been approved
-                    if (operation != null)
+                    if (VerifyOrder(ctx.Order, payment))
                     {
-                        var totalAmount = operation.Amount;
+                        // Get operations to check if payment has been approved
+                        var operation = payment.Operations.LastOrDefault();
 
-                        if (operation.QuickPayStatusCode == "20000" || operation.AcquirerStatusCode == "000")
+                        // Check if payment has been approved
+                        if (operation != null)
                         {
-                            var paymentStatus = GetPaymentStatus(operation);
+                            var totalAmount = operation.Amount;
 
-                            return new CallbackResult
+                            if (operation.QuickPayStatusCode == "20000" || operation.AcquirerStatusCode == "000")
                             {
-                                TransactionInfo = new TransactionInfo
+                                var paymentStatus = GetPaymentStatus(operation);
+
+                                return new CallbackResult
                                 {
-                                    AmountAuthorized = AmountFromMinorUnits(totalAmount),
-                                    TransactionId = GetTransactionId(payment),
-                                    PaymentStatus = paymentStatus
-                                }
-                            };
+                                    TransactionInfo = new TransactionInfo
+                                    {
+                                        AmountAuthorized = AmountFromMinorUnits(totalAmount),
+                                        TransactionId = GetTransactionId(payment),
+                                        PaymentStatus = paymentStatus
+                                    }
+                                };
+                            }
+                            else
+                            {
+                                _logger.Warn($"QuickPay [{ctx.Order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
+                            }
                         }
-                        else
-                        {
-                            Vendr.Log.Warn<QuickPayCheckoutPaymentProvider>($"QuickPay [{order.OrderNumber}] - Payment not approved. QuickPay status code: {operation.QuickPayStatusCode} ({operation.QuickPayStatusMessage}). Acquirer status code: {operation.AcquirerStatusCode} ({operation.AcquirerStatusMessage}).");
-                        }   
+                    }
+                    else
+                    {
+                        _logger.Warn($"QuickPay [{ctx.Order.OrderNumber}] - Couldn't verify the order");
                     }
                 }
                 else
                 {
-                    Vendr.Log.Warn<QuickPayCheckoutPaymentProvider>($"QuickPay [{order.OrderNumber}] - Checksum validation failed");
+                    _logger.Warn($"QuickPay [{ctx.Order.OrderNumber}] - Checksum validation failed");
                 }
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - ProcessCallback");
+                _logger.Error(ex, "QuickPay - ProcessCallback");
             }
 
             return CallbackResult.Empty;
         }
 
-        public override ApiResult FetchPaymentStatus(OrderReadOnly order, QuickPayCheckoutSettings settings)
+        private bool VerifyOrder(OrderReadOnly order, QuickPayPayment payment)
+        {
+            if (payment.Variables.Count > 0 && 
+                payment.Variables.TryGetValue("orderReference", out string orderReference))
+            {
+                if (order.GenerateOrderReference() == orderReference)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                if (order.Properties["quickPayOrderId"]?.Value == payment.OrderId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public override async Task<ApiResult> FetchPaymentStatusAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
         {
             // GET: /payments/{id}
 
             try
             {
-                var id = order.TransactionInfo.TransactionId;
+                var id = ctx.Order.TransactionInfo.TransactionId;
 
-                var clientConfig = GetQuickPayClientConfig(settings);
+                var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.GetPayment(id);
+                var payment = await client.GetPaymentAsync(id);
 
                 Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
 
@@ -199,24 +275,24 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - FetchPaymentStatus");
+                _logger.Error(ex, "QuickPay - FetchPaymentStatus");
             }
 
             return ApiResult.Empty;
         }
 
-        public override ApiResult CancelPayment(OrderReadOnly order, QuickPayCheckoutSettings settings)
+        public override async Task<ApiResult> CancelPaymentAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
         {
             // POST: /payments/{id}/cancel
 
             try
             {
-                var id = order.TransactionInfo.TransactionId;
+                var id = ctx.Order.TransactionInfo.TransactionId;
 
-                var clientConfig = GetQuickPayClientConfig(settings);
+                var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.CancelPayment(id);
+                var payment = await client.CancelPaymentAsync(id);
 
                 Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
 
@@ -236,26 +312,26 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - CancelPayment");
+                _logger.Error(ex, "QuickPay - CancelPayment");
             }
 
             return ApiResult.Empty;
         }
 
-        public override ApiResult CapturePayment(OrderReadOnly order, QuickPayCheckoutSettings settings)
+        public override async Task<ApiResult> CapturePaymentAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
         {
             // POST: /payments/{id}/capture
 
             try
             {
-                var id = order.TransactionInfo.TransactionId;
+                var id = ctx.Order.TransactionInfo.TransactionId;
 
-                var clientConfig = GetQuickPayClientConfig(settings);
+                var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.CapturePayment(id, new
+                var payment = await client.CapturePaymentAsync(id, new
                 {
-                    amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
+                    amount = AmountToMinorUnits(ctx.Order.TransactionInfo.AmountAuthorized.Value)
                 });
 
                 Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
@@ -276,26 +352,26 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - CapturePayment");
+                _logger.Error(ex, "QuickPay - CapturePayment");
             }
 
             return ApiResult.Empty;
         }
 
-        public override ApiResult RefundPayment(OrderReadOnly order, QuickPayCheckoutSettings settings)
+        public override async Task<ApiResult> RefundPaymentAsync(PaymentProviderContext<QuickPayCheckoutSettings> ctx)
         {
             // POST: /payments/{id}/refund
 
             try
             {
-                var id = order.TransactionInfo.TransactionId;
+                var id = ctx.Order.TransactionInfo.TransactionId;
 
-                var clientConfig = GetQuickPayClientConfig(settings);
+                var clientConfig = GetQuickPayClientConfig(ctx.Settings);
                 var client = new QuickPayClient(clientConfig);
 
-                var payment = client.RefundPayment(id, new
+                var payment = await client.RefundPaymentAsync(id, new
                 {
-                    amount = AmountToMinorUnits(order.TransactionInfo.AmountAuthorized.Value)
+                    amount = AmountToMinorUnits(ctx.Order.TransactionInfo.AmountAuthorized.Value)
                 });
 
                 Operation lastCompletedOperation = payment.Operations.LastOrDefault(o => !o.Pending && o.QuickPayStatusCode == "20000");
@@ -316,43 +392,41 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             }
             catch (Exception ex)
             {
-                Vendr.Log.Error<QuickPayCheckoutPaymentProvider>(ex, "QuickPay - RefundPayment");
+                _logger.Error(ex, "QuickPay - RefundPayment");
             }
 
             return ApiResult.Empty;
         }
 
-        public QuickPayPayment ReadCallbackBody(HttpRequestBase request)
+        public async Task<QuickPayPayment> ParseCallbackAsync(HttpRequestMessage request)
         {
-            request.InputStream.Position = 0;
+            using (var stream = await request.Content.ReadAsStreamAsync())
+            {
+                if (stream.CanSeek)
+                    stream.Seek(0, SeekOrigin.Begin);
 
-            // Get quickpay callback body text - See parameters: http://tech.quickpay.net/api/callback/
-            var bodyStream = new StreamReader(request.InputStream);
-            bodyStream.BaseStream.Seek(0, SeekOrigin.Begin);
+                // Get quickpay callback body text - See parameters: https://learn.quickpay.net/tech-talk/api/callback/
 
-            // Get body text
-            var bodyText = bodyStream.ReadToEnd();
-            request.InputStream.Position = 0;
+                using (var reader = new StreamReader(stream))
+                {
+                    var json = await reader.ReadToEndAsync();
 
-            // Deserialize json body text 
-            return JsonConvert.DeserializeObject<QuickPayPayment>(bodyText);
+                    // Deserialize json body text 
+                    return JsonConvert.DeserializeObject<QuickPayPayment>(json);
+                }
+            }
         }
 
-        private bool ValidateChecksum(HttpRequestBase request, string privateAccountKey)
+        private async Task<bool> ValidateChecksum(HttpRequestMessage request, string privateAccountKey)
         {
-            var requestCheckSum = request.Headers["QuickPay-Checksum-Sha256"];
+            var json = await request.Content.ReadAsStringAsync();
+            var checkSum = request.Headers.GetValues("QuickPay-Checksum-Sha256").FirstOrDefault();
 
-            if (string.IsNullOrEmpty(requestCheckSum)) return false;
+            if (string.IsNullOrEmpty(checkSum)) return false;
 
-            var inputStream = request.InputStream;
-            var bytes = new byte[inputStream.Length];
-            request.InputStream.Position = 0;
-            request.InputStream.Read(bytes, 0, bytes.Length);
-            request.InputStream.Position = 0;
-            var content = Encoding.UTF8.GetString(bytes);
-            var calculatedChecksum = Checksum(content, privateAccountKey);
+            var calculatedChecksum = Checksum(json, privateAccountKey);
 
-            return requestCheckSum.Equals(calculatedChecksum);
+            return checkSum.Equals(calculatedChecksum);
         }
 
         private string Checksum(string content, string privateKey)

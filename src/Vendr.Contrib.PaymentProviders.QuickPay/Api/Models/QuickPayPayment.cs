@@ -55,6 +55,12 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
         public List<Operation> Operations { get; set; }
 
         /// <summary>
+        /// Variables
+        /// </summary>
+        [JsonProperty("variables")]
+        public Dictionary<string, string> Variables { get; set; }
+
+        /// <summary>
         /// Metadata
         /// </summary>
         [JsonProperty("metadata")]
