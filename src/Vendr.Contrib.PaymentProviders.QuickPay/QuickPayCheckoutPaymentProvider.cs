@@ -12,9 +12,9 @@ using Vendr.Contrib.PaymentProviders.QuickPay.Api;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
 using Vendr.Core;
 using Vendr.Core.Models;
+using Vendr.Core.Web;
 using Vendr.Core.Web.Api;
 using Vendr.Core.Web.PaymentProviders;
-using Vendr.Extensions;
 
 namespace Vendr.Contrib.PaymentProviders.QuickPay
 {
