@@ -83,6 +83,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         var store = Vendr.Services.StoreService.GetStore(ctx.Order.StoreId);
                         var orderNumberTemplate = store.OrderNumberTemplate;
 
+                        // If the order number template is not equals Vendr generated order number, we need to decide whether to trim prefix, suffix or both.
                         if (orderNumberTemplate.Equals("{0}") == false)
                         {
                             var splitted = orderNumberTemplate.Split("{0}".ToCharArray())
