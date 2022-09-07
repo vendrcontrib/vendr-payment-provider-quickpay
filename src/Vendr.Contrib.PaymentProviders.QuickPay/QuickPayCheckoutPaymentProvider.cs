@@ -12,6 +12,7 @@ using Vendr.Contrib.PaymentProviders.QuickPay.Api;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
 using Vendr.Core;
 using Vendr.Core.Models;
+using Vendr.Core.Web;
 using Vendr.Core.Web.Api;
 using Vendr.Core.Web.PaymentProviders;
 
@@ -29,9 +30,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         public override bool CanRefundPayments => true;
         public override bool CanFetchPaymentStatus => true;
 
-        public override bool FinalizeAtContinueUrl => true;
+        public override bool FinalizeAtContinueUrl => false;
 
-        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]{
+        public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[] {
+            new TransactionMetaDataDefinition("quickPayOrderId", "QuickPay Order ID"),
             new TransactionMetaDataDefinition("quickPayPaymentId", "QuickPay Payment ID"),
             new TransactionMetaDataDefinition("quickPayPaymentHash", "QuickPay Payment Hash")
         };
@@ -58,6 +60,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             // Parse language - default language is English.
             Enum.TryParse(settings.Lang, true, out QuickPayLang lang);
 
+            var quickPayOrderId = order.Properties["quickPayOrderId"]?.Value;
             var quickPayPaymentId = order.Properties["quickPayPaymentId"]?.Value;
             var quickPayPaymentHash = order.Properties["quickPayPaymentHash"]?.Value ?? string.Empty;
             var quickPayPaymentLinkHash = order.Properties["quickPayPaymentLinkHash"]?.Value ?? string.Empty;
@@ -71,10 +74,53 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                     var clientConfig = GetQuickPayClientConfig(settings);
                     var client = new QuickPayClient(clientConfig);
 
+                    var reference = order.OrderNumber;
+
+                    // QuickPay has a limit of order id between 4-20 characters.
+                    if (reference.Length > 20)
+                    {                       
+                        var store = Vendr.Services.StoreService.GetStore(order.StoreId);
+                        var orderNumberTemplate = store.OrderNumberTemplate;
+
+                        // If the order number template is not equals Vendr generated order number, we need to decide whether to trim prefix, suffix or both.
+                        if (orderNumberTemplate.Equals("{0}") == false)
+                        {
+                            var index = orderNumberTemplate.IndexOf("{0}");
+                            var prefix = orderNumberTemplate.Substring(0, index);
+                            var suffix = orderNumberTemplate.Substring(index + 3, orderNumberTemplate.Length - (index + 3));
+
+                            if (orderNumberTemplate.StartsWith("{0}"))
+                            {
+                                // Trim suffix
+                                reference = reference.Substring(index, reference.Length - suffix.Length);
+                            }
+                            else if (orderNumberTemplate.EndsWith("{0}"))
+                            {
+                                // Trim prefix
+                                reference = reference.Substring(prefix.Length - 1);
+                            }
+                            else if (orderNumberTemplate.Contains("{0}"))
+                            {
+                                // Trim prefix & suffix
+                                reference = reference.Substring(prefix.Length - 1, reference.Length - suffix.Length);
+                            }
+                        }
+                    }
+
+                    var metaData = new Dictionary<string, string>
+                    {
+                        { "orderReference", order.GenerateOrderReference() },
+                        { "orderId", order.Id.ToString("D") },
+                        { "orderNumber", order.OrderNumber }
+                    };
+
+                    quickPayOrderId = reference;
+
                     var payment = client.CreatePayment(new
                     {
-                        order_id = order.OrderNumber,
-                        currency = currencyCode
+                        order_id = quickPayOrderId,
+                        currency = currencyCode,
+                        Variables = metaData
                     });
 
                     quickPayPaymentId = GetTransactionId(payment);
@@ -111,6 +157,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
             {
                 MetaData = new Dictionary<string, string>
                 {
+                    { "quickPayOrderId", quickPayOrderId },
                     { "quickPayPaymentId", quickPayPaymentId },
                     { "quickPayPaymentHash", quickPayPaymentHash },
                     { "quickPayPaymentLinkHash", quickPayPaymentLinkHash }
