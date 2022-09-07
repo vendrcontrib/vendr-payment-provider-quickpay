@@ -12,7 +12,7 @@ trigger:
       - v*
 
 variables:
-  vmImageName: 'vs2017-win2016'
+  vmImageName: 'windows-2019'
   nuGetOrgServiceCreds: 'NuGet.org (Vendr.Contrib)'
 
 stages:
