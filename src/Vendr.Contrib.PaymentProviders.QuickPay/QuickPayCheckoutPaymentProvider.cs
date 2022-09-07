@@ -1,13 +1,12 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Vendr.Common.Logging;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api;
 using Vendr.Contrib.PaymentProviders.QuickPay.Api.Models;
@@ -30,7 +29,7 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
         public override bool CanRefundPayments => true;
         public override bool CanFetchPaymentStatus => true;
 
-        public override bool FinalizeAtContinueUrl => true;
+        public override bool FinalizeAtContinueUrl => false;
 
         public override IEnumerable<TransactionMetaDataDefinition> TransactionMetaDataDefinitions => new[]
         {
@@ -83,27 +82,27 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         var store = Vendr.Services.StoreService.GetStore(ctx.Order.StoreId);
                         var orderNumberTemplate = store.OrderNumberTemplate;
 
+                        // If the order number template is not equals Vendr generated order number, we need to decide whether to trim prefix, suffix or both.
                         if (orderNumberTemplate.Equals("{0}") == false)
                         {
-                            var splitted = orderNumberTemplate.Split("{0}".ToCharArray())
-                                .Where(x => !string.IsNullOrEmpty(x))
-                                .ToArray();
+                            var index = orderNumberTemplate.IndexOf("{0}");
+                            var prefix = orderNumberTemplate.Substring(0, index);
+                            var suffix = orderNumberTemplate.Substring(index + 3, orderNumberTemplate.Length - (index + 3));
 
-                            if (orderNumberTemplate.StartsWith("{0}") && splitted.Length == 1)
+                            if (orderNumberTemplate.StartsWith("{0}"))
                             {
-                                reference = reference
-                                    .TrimEnd(splitted[0].ToCharArray());
+                                // Trim suffix
+                                reference = reference.Substring(index, reference.Length - suffix.Length);
                             }
-                            else if (orderNumberTemplate.EndsWith("{0}") && splitted.Length == 1)
+                            else if (orderNumberTemplate.EndsWith("{0}"))
                             {
-                                reference = reference
-                                    .TrimStart(splitted[0].ToCharArray());
+                                // Trim prefix
+                                reference = reference.Substring(prefix.Length - 1);
                             }
-                            else if (orderNumberTemplate.Contains("{0}") && splitted.Length == 2)
+                            else if (orderNumberTemplate.Contains("{0}"))
                             {
-                                reference = reference
-                                    .TrimStart(splitted[0].ToCharArray())
-                                    .TrimEnd(splitted[1].ToCharArray());
+                                // Trim prefix & suffix
+                                reference = reference.Substring(prefix.Length - 1, reference.Length - suffix.Length);
                             }
                         }
                     }
