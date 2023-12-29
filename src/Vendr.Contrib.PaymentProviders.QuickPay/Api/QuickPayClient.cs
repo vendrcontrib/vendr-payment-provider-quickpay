@@ -91,6 +91,10 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api
             {
                 throw;
             }
+            catch (Exception ex)
+            {
+                throw;
+            }
 
             return result;
         }
