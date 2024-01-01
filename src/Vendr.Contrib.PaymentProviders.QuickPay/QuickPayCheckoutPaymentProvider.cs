@@ -131,10 +131,11 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay
                         Language = lang.ToString(),
                         ContinueUrl = ctx.Urls.ContinueUrl,
                         CancelUrl = ctx.Urls.CancelUrl,
-                        CallbackUrl = ctx.Urls.CallbackUrl,
+                        CallbackUrl = ctx.Urls.CallbackUrl.Replace("https://localhost:44360", "https://0a01-188-228-1-122.ngrok-free.app"),
                         PaymentMethods = paymentMethods?.Length > 0 ? string.Join(",", paymentMethods) : null,
                         AutoFee = ctx.Settings.AutoFee,
-                        AutoCapture = ctx.Settings.AutoCapture
+                        AutoCapture = ctx.Settings.AutoCapture,
+                        Framed = ctx.Settings.Framed
                     });
 
                     paymentFormLink = paymentLink.Url;

@@ -51,5 +51,11 @@ namespace Vendr.Contrib.PaymentProviders.QuickPay.Api.Models
         /// </summary>
         [JsonProperty("auto_capture")]
         public bool? AutoCapture { get; set; }
+
+        /// <summary>
+        /// Allow opening in iframe. Default is false.
+        /// </summary>
+        [JsonProperty("framed")]
+        public bool? Framed { get; set; }
     }
 }
